@@ -28,12 +28,16 @@
   body {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
                 Helvetica,Arial,sans-serif;
-    background:var(--bg); color:var(--ink); line-height:1.5;
+    background:radial-gradient(circle at 15% 15%,rgba(99,102,241,.18),transparent 29%),
+               radial-gradient(circle at 85% 90%,rgba(139,92,246,.14),transparent 30%),var(--bg);
+    color:var(--ink); line-height:1.5;
     min-height:100vh; display:flex; align-items:center;
     justify-content:center; padding:20px;
     -webkit-font-smoothing:antialiased;
   }
-  .box { width:100%; max-width:400px; }
+  .box { width:100%; max-width:400px; position:relative; }
+  .box::before { content:""; position:fixed; inset:18px; pointer-events:none;
+    border:1px solid var(--line); border-radius:28px; opacity:.55; }
   .brand { text-align:center; margin-bottom:26px; }
   .mark {
     width:60px; height:60px; margin:0 auto 14px;
@@ -44,11 +48,16 @@
   }
   .brand h1 { font-size:25px; font-weight:700; letter-spacing:-.02em; }
   .brand p { font-size:14px; color:var(--muted); margin-top:4px; }
+  .eyebrow { font-size:10px; font-weight:800; letter-spacing:.16em;
+    color:var(--accent); margin-bottom:7px; }
 
   .card {
     background:var(--surface); border:1px solid var(--line);
-    border-radius:22px; padding:28px; box-shadow:var(--sh-3);
+    border-radius:22px; padding:28px; box-shadow:var(--sh-3); position:relative;
+    overflow:hidden;
   }
+  .card::before { content:""; position:absolute; top:0; left:28px; right:28px;
+    height:2px; background:linear-gradient(90deg,transparent,var(--accent),var(--accent-2),transparent); }
   label { display:block; font-size:12.5px; font-weight:650;
     color:var(--muted); margin-bottom:7px; }
   input {
@@ -86,6 +95,10 @@
   .foot a:hover { text-decoration:underline; }
   .tip { text-align:center; font-size:12px; color:var(--faint);
     margin-top:20px; line-height:1.6; }
+  .secure { display:flex; gap:7px; align-items:center; justify-content:center;
+    font-size:11.5px; color:var(--faint); margin-top:17px; }
+  .secure::before { content:""; width:6px; height:6px; border-radius:50%; background:#10b981;
+    box-shadow:0 0 0 3px rgba(16,185,129,.13); }
   code { background:var(--surface); border:1px solid var(--line);
     padding:1px 6px; border-radius:5px; font-size:11.5px; }
 </style>
@@ -94,6 +107,7 @@
   <div class="box">
 
     <div class="brand">
+      <div class="eyebrow">CADENCE / ACCESS</div>
       <div class="mark">🗓️</div>
       <h1>{{ app_name }}</h1>
       <p>Sign in to your schedule</p>
@@ -114,12 +128,12 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="username">Username</label>
         <input type="text" id="username" name="username"
-               value="{{ username }}" autocomplete="username"
+               value="{{ username }}" autocomplete="username" minlength="3" maxlength="32"
                autofocus required>
 
         <label for="password">Password</label>
         <input type="password" id="password" name="password"
-               autocomplete="current-password" required>
+               autocomplete="current-password" minlength="8" maxlength="200" required>
 
         <button class="btn" type="submit">Sign in</button>
       </form>
@@ -129,6 +143,7 @@
           No account? <a href="{{ url_for('signup') }}">Create one</a>
         </div>
       {% endif %}
+      <div class="secure">Private account session</div>
     </div>
 
     <div class="tip">

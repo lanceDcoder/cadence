@@ -131,6 +131,13 @@
   /* ---------- HEADER BUTTONS ---------- */
   .head-actions { position:absolute; top:22px; right:18px; z-index:2;
     display:flex; gap:8px; align-items:center; }
+  .account-chip { min-height:38px; padding:0 12px; display:flex;
+    align-items:center; gap:7px; border:1px solid rgba(255,255,255,.22);
+    border-radius:19px; background:rgba(9,12,35,.16); color:#fff;
+    font-size:12px; font-weight:650; letter-spacing:.01em;
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  .account-chip::before { content:""; width:7px; height:7px; border-radius:50%;
+    background:#5eead4; box-shadow:0 0 0 3px rgba(94,234,212,.16); }
   .logout-btn { min-height:38px; padding:0 12px; border-radius:19px;
     border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.14);
     color:#fff; cursor:pointer; font:600 13px/1 system-ui,sans-serif;
@@ -483,6 +490,7 @@
 <div class="assistant">
   <div class="head-actions">
     {% if accounts_on and current_user %}
+      <div class="account-chip" title="Signed in account">{{ current_user.display_name }}</div>
       <form class="logout-form" method="POST" action="{{ url_for('logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="logout-btn" type="submit"

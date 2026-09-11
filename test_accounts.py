@@ -207,6 +207,25 @@ check("Login page itself is reachable", r.status_code == 200)
 # ===============================================================
 print("\n7. ISOLATION  —  the whole point")
 
+os.environ["CADENCE_SIGNUP"] = "on"
+new_user = app.test_client()
+r = new_user.get("/signup")
+check("Sign-up page is reachable when public sign-up is enabled", r.status_code == 200)
+r = csrf_post(new_user, "/signup", data={
+    "username": "newmember", "display_name": "New Member",
+    "password": "newmemberpass", "confirm": "newmemberpass",
+}, follow_redirects=False)
+check("A new visitor can create an account", r.status_code == 302,
+      f"got {r.status_code}")
+check("Newly signed-up user reaches their private schedule",
+      new_user.get("/").status_code == 200)
+
+r = csrf_post(new_user, "/logout", follow_redirects=False)
+check("New user can sign out", r.status_code == 302)
+returning = signed_in("newmember", "newmemberpass")
+check("New user can sign back in", returning.get("/").status_code == 200)
+os.environ.pop("CADENCE_SIGNUP", None)
+
 ade_c = signed_in("ade", "password123")
 sarah_c = signed_in("sarah", "password456")
 
