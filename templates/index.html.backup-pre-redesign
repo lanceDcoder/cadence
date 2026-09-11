@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --accent:#4f46e5; --accent-soft:#eef2ff; --accent-dark:#4338ca;
+    --ink:#111827; --muted:#6b7280; --faint:#9ca3af; --line:#e5e7eb;
+    --bg:#f7f7f9; --now:#ef4444;
+    --amber:#f59e0b; --amber-soft:#fff7ed; --amber-ink:#b45309;
+    --teal:#0d9488; --teal-soft:#f0fdfa;
+  }
+
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+                Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+    padding-bottom:100px;
+  }
+  .wrap { max-width:660px; margin:0 auto; padding:0 16px; }
+
+  /* ---------- ASSISTANT PANEL ---------- */
+  .assistant {
+    background:linear-gradient(135deg,#4f46e5 0%,#6d5ce7 55%,#8b5cf6 100%);
+    color:#fff; padding:28px 0 30px; margin-bottom:18px;
+  }
+  .assistant .date { font-size:12px; text-transform:uppercase;
+    letter-spacing:.09em; opacity:.75; margin-bottom:9px; }
+  .assistant h1 { font-size:26px; font-weight:650; margin-bottom:5px; }
+  .assistant .summary { font-size:15.5px; opacity:.92; }
+  .assistant .next { margin-top:14px; display:inline-block;
+    background:rgba(255,255,255,.17); border:1px solid rgba(255,255,255,.24);
+    padding:9px 15px; border-radius:9px; font-size:14.5px; font-weight:500; }
+
+  /* ---------- TABS ---------- */
+  .tabs { display:flex; gap:4px; background:#fff; border:1px solid var(--line);
+    border-radius:11px; padding:4px; margin-bottom:16px; }
+  .tab { flex:1; text-align:center; padding:9px 6px; border-radius:8px;
+    font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer;
+    border:none; background:transparent; font-family:inherit; }
+  .tab.active { background:var(--accent); color:#fff; }
+  .tab:hover:not(.active) { background:#f3f4f6; }
+
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  /* ---------- PERMISSION STRIP ---------- */
+  .permission { display:none; background:#fffbeb; border:1px solid #fde68a;
+    border-radius:11px; padding:12px 14px; margin-bottom:14px;
+    font-size:13.5px; color:#92400e; align-items:center; gap:12px; }
+  .permission.show { display:flex; }
+  .permission span { flex:1; }
+  .permission button { background:var(--amber); color:#fff; border:none;
+    padding:8px 14px; border-radius:8px; font-size:13px; font-weight:650;
+    cursor:pointer; font-family:inherit; white-space:nowrap; }
+
+  /* ---------- ALARM CARD ---------- */
+  .alarm { display:none; background:#fff; border:2px solid var(--accent);
+    border-radius:14px; padding:18px; margin-bottom:16px;
+    box-shadow:0 8px 28px rgba(79,70,229,.22); animation:rise .32s ease; }
+  .alarm.show { display:block; }
+  @keyframes rise { from{opacity:0;transform:translateY(-10px);}
+                    to{opacity:1;transform:translateY(0);} }
+  .alarm .kicker { font-size:11px; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--accent); font-weight:800; margin-bottom:7px; }
+  .alarm .headline { font-size:18px; font-weight:650; line-height:1.35; }
+  .alarm .sub { font-size:13px; color:var(--muted); margin-top:5px; }
+  .alarm .goal-note { font-size:12.5px; color:var(--teal);
+    background:var(--teal-soft); border-radius:7px; padding:7px 10px;
+    margin-top:9px; display:inline-block; }
+  .alarm .btns { display:flex; gap:8px; margin-top:15px; }
+  .alarm .btn { flex:1; padding:11px 6px; border-radius:9px; font-size:13.5px;
+    font-weight:650; cursor:pointer; font-family:inherit;
+    border:1.5px solid var(--line); background:#fff; color:var(--muted); }
+  .alarm .btn:hover { background:#f9fafb; }
+  .alarm .btn.primary { background:var(--accent); color:#fff;
+    border-color:var(--accent); }
+  .alarm .btn.primary:hover { background:var(--accent-dark); }
+
+  /* ---------- DAY NAVIGATION ---------- */
+  .daynav { display:flex; align-items:center; justify-content:space-between;
+    background:#fff; border:1px solid var(--line); border-radius:11px;
+    padding:8px 10px; margin-bottom:12px; }
+  .daynav a { width:32px; height:32px; border-radius:8px;
+    border:1px solid var(--line); display:flex; align-items:center;
+    justify-content:center; text-decoration:none; color:var(--muted);
+    font-size:15px; }
+  .daynav a:hover { background:#f3f4f6; color:var(--ink); }
+  .daynav .mid { text-align:center; }
+  .daynav .lbl { font-size:14.5px; font-weight:650; }
+  .daynav .sub { font-size:11.5px; color:var(--faint); }
+  .daynav .today-btn { font-size:11.5px; background:var(--accent-soft);
+    color:var(--accent); border-radius:20px; padding:3px 10px;
+    text-decoration:none; font-weight:700; margin-left:7px; }
+
+  /* ---------- SECTION HEAD ---------- */
+  .section-head { display:flex; align-items:baseline;
+    justify-content:space-between; margin-bottom:9px; }
+  .section-head h2 { font-size:13px; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--muted); font-weight:650; }
+  .section-head .hint { font-size:12.5px; color:var(--faint); }
+
+  /* ---------- TIMELINE ---------- */
+  .timeline { background:#fff; border:1px solid var(--line);
+    border-radius:14px; overflow:hidden; }
+  .hour-row { display:flex; align-items:stretch;
+    border-bottom:1px solid #f1f2f4; min-height:52px; position:relative; }
+  .hour-row:last-child { border-bottom:none; }
+  .hour-row.past { background:#fcfcfd; }
+  .hour-row.past .hour-label { color:#c3c7ce; }
+  .hour-row.current { background:#fff7f7; }
+  .hour-label { flex:0 0 84px; padding:13px 10px 13px 16px; font-size:12.5px;
+    font-variant-numeric:tabular-nums; color:var(--faint);
+    border-right:1px solid #f1f2f4; text-align:right; }
+  .hour-row.current .hour-label { color:var(--now); font-weight:700; }
+  .hour-body { flex:1; padding:8px 12px; display:flex; flex-direction:column;
+    gap:6px; justify-content:center; }
+  .now-line { position:absolute; left:84px; right:0; height:2px;
+    background:var(--now); z-index:3; }
+  .now-line::before { content:""; position:absolute; left:-5px; top:-3px;
+    width:8px; height:8px; border-radius:50%; background:var(--now); }
+
+  /* ---------- TASK ---------- */
+  .task { display:flex; align-items:center; gap:9px; background:var(--accent-soft);
+    border-left:3px solid var(--accent); border-radius:8px; padding:9px 11px; }
+  .task.done { background:#f3f4f6; border-left-color:#b6bcc6; }
+  .task.open, .task.snoozed { background:var(--amber-soft);
+    border-left-color:var(--amber); }
+  .task.goal { background:var(--teal-soft); border-left-color:var(--teal); }
+  .task-time { font-size:12px; font-weight:700; color:var(--accent);
+    font-variant-numeric:tabular-nums; flex:0 0 auto; min-width:62px; }
+  .task.done .task-time { color:var(--faint); }
+  .task.open .task-time, .task.snoozed .task-time { color:var(--amber-ink); }
+  .task.goal .task-time { color:var(--teal); }
+  .task-main { flex:1; min-width:0; }
+  .task-title { font-size:14.5px; word-break:break-word; }
+  .task.done .task-title { text-decoration:line-through; color:var(--muted); }
+  .task-meta { font-size:11px; color:var(--muted); margin-top:1px; }
+  .badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:11px;
+    white-space:nowrap; background:#fde68a; color:#92400e; }
+  .badge.rt { background:#e0e7ff; color:#3730a3; }
+  .badge.gl { background:#ccfbf1; color:#0f766e; }
+  .task-actions { display:flex; gap:2px; flex:0 0 auto; }
+  .icon-btn { border:none; background:transparent; cursor:pointer;
+    font-size:14px; line-height:1; padding:5px 6px; border-radius:6px;
+    color:var(--muted); }
+  .icon-btn:hover { background:rgba(0,0,0,.07); color:var(--ink); }
+  .icon-btn.check:hover { color:#059669; }
+  .icon-btn.del:hover { color:#dc2626; }
+
+  /* ---------- LISTS (routines / goals) ---------- */
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:14px 15px; margin-bottom:10px; }
+  .card-row { display:flex; align-items:center; gap:10px; }
+  .card-row .grow { flex:1; min-width:0; }
+  .card h3 { font-size:15px; font-weight:650; }
+  .card .meta { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .card.paused { opacity:.55; }
+  .daychips { display:flex; gap:3px; margin-top:7px; flex-wrap:wrap; }
+  .daychip { font-size:10.5px; padding:2px 7px; border-radius:20px;
+    background:#f3f4f6; color:var(--faint); font-weight:600; }
+  .daychip.on { background:var(--accent-soft); color:var(--accent); }
+
+  .progress { height:6px; background:#f3f4f6; border-radius:20px;
+    overflow:hidden; margin-top:9px; }
+  .progress span { display:block; height:100%; background:var(--teal); }
+
+  .empty { text-align:center; color:var(--faint); font-size:13.5px;
+    padding:28px 16px; background:#fff; border:1px dashed var(--line);
+    border-radius:12px; }
+
+  /* ---------- BUTTONS ---------- */
+  .btn { padding:11px; border-radius:9px; font-size:14.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; border:1.5px solid var(--line);
+    background:#fff; color:var(--muted); }
+  .btn:hover { background:#f9fafb; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.primary:hover { background:var(--accent-dark); }
+  .btn.full { width:100%; }
+  .btn.sm { padding:7px 12px; font-size:13px; }
+  .btn.danger { color:#dc2626; }
+
+  .add-bar { position:fixed; bottom:0; left:0; right:0; padding:12px 16px 18px;
+    background:linear-gradient(to top,var(--bg) 55%,rgba(247,247,249,0)); }
+  .add-inner { max-width:628px; margin:0 auto; display:flex; gap:8px; }
+  .add-btn { flex:1; background:var(--accent); color:#fff; border:none;
+    padding:14px; border-radius:12px; font-size:15.5px; font-weight:600;
+    cursor:pointer; box-shadow:0 5px 18px rgba(79,70,229,.32); }
+  .add-btn:hover { background:var(--accent-dark); }
+  .mic-btn { width:52px; background:#fff; border:1.5px solid var(--line);
+    border-radius:12px; font-size:20px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.07); }
+  .mic-btn:hover { background:#f9fafb; }
+  .mic-btn.listening { background:#fee2e2; border-color:var(--now);
+    animation:pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
+
+  /* ---------- MODAL ---------- */
+  .overlay { display:none; position:fixed; inset:0; background:rgba(17,24,39,.5);
+    z-index:50; align-items:center; justify-content:center; padding:16px; }
+  .overlay.open { display:flex; }
+  .modal { background:#fff; border-radius:16px; padding:22px; width:100%;
+    max-width:440px; max-height:88vh; overflow-y:auto; }
+  .modal h3 { font-size:18px; margin-bottom:4px; }
+  .modal .sub { font-size:13px; color:var(--muted); margin-bottom:16px; }
+  label { display:block; font-size:12.5px; font-weight:600; color:var(--muted);
+    margin-bottom:6px; }
+  input[type=text], input[type=time], input[type=date], input[type=number],
+  textarea {
+    width:100%; padding:11px 12px; font-size:15px; border:1.5px solid var(--line);
+    border-radius:9px; font-family:inherit; margin-bottom:14px; background:#fff;
+    color:var(--ink); }
+  textarea { resize:vertical; min-height:74px; }
+  input:focus, textarea:focus { outline:none; border-color:var(--accent); }
+  .modal-actions { display:flex; gap:9px; margin-top:4px; }
+  .modal-actions .btn { flex:1; }
+
+  .daypick { display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+  .daypick label { margin:0; }
+  .daypick input { display:none; }
+  .daypick span { display:inline-block; padding:7px 11px; border-radius:8px;
+    border:1.5px solid var(--line); font-size:13px; font-weight:600;
+    color:var(--muted); cursor:pointer; }
+  .daypick input:checked + span { background:var(--accent); color:#fff;
+    border-color:var(--accent); }
+
+  .preview-list { max-height:230px; overflow-y:auto; border:1px solid var(--line);
+    border-radius:10px; margin-bottom:14px; }
+  .preview-item { display:flex; gap:10px; padding:8px 11px;
+    border-bottom:1px solid #f3f4f6; font-size:13px; }
+  .preview-item:last-child { border-bottom:none; }
+  .preview-item .d { color:var(--muted); min-width:88px; font-weight:600; }
+  .preview-item .t { color:var(--accent); font-weight:700; min-width:62px; }
+
+  .week-block { border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; margin-bottom:9px; }
+  .week-block h4 { font-size:13px; color:var(--accent); margin-bottom:5px; }
+  .week-block ul { list-style:none; font-size:13px; color:var(--muted); }
+  .week-block li { padding:2px 0; }
+  .week-block li::before { content:"· "; }
+
+  .parse-row { display:flex; gap:8px; align-items:center; padding:9px 0;
+    border-bottom:1px solid #f3f4f6; }
+  .parse-row:last-child { border-bottom:none; }
+  .parse-row input[type=text] { flex:1; margin:0; }
+  .parse-row input[type=time] { width:118px; margin:0; }
+  .parse-warn { font-size:12px; color:var(--amber-ink);
+    background:var(--amber-soft); padding:7px 10px; border-radius:7px;
+    margin-bottom:11px; }
+  .parse-fail { font-size:12.5px; color:#b91c1c; background:#fef2f2;
+    padding:9px 11px; border-radius:8px; margin-bottom:11px; }
+  .hint-list { font-size:12.5px; color:var(--faint); margin-top:-6px;
+    margin-bottom:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<!-- ============ ASSISTANT PANEL ============ -->
+<div class="assistant">
+  <div class="wrap">
+    <div class="date">{{ today_label }}</div>
+    <h1>{{ assistant.greeting }}</h1>
+    <div class="summary">{{ assistant.summary }}</div>
+    <div class="next">{{ assistant.next_up }}</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="permission" id="permission-strip">
+    <span>Allow notifications so {{ app_name }} can reach you when this
+          tab is in the background.</span>
+    <button onclick="askPermission()">Allow</button>
+  </div>
+
+  <!-- ============ ALARM ============ -->
+  <div class="alarm" id="alarm">
+    <div class="kicker" id="alarm-kicker">Reminder</div>
+    <div class="headline" id="alarm-headline"></div>
+    <div class="sub" id="alarm-sub"></div>
+    <div class="goal-note" id="alarm-goal" style="display:none;"></div>
+    <div class="btns">
+      <button class="btn primary" onclick="respond('done')">Done</button>
+      <button class="btn" onclick="respond('open')">Not done yet</button>
+      <button class="btn" onclick="respond('snooze')">Snooze {{ snooze_minutes }} mins</button>
+    </div>
+  </div>
+
+  <!-- ============ TABS ============ -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('schedule',this)">Schedule</button>
+    <button class="tab" onclick="showTab('routines',this)">Routines</button>
+    <button class="tab" onclick="showTab('goals',this)">Goals</button>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- SCHEDULE                                                -->
+  <!-- ======================================================= -->
+  <div class="panel active" id="panel-schedule">
+
+    <div class="daynav">
+      <a href="/?date={{ prev_date }}" title="Previous day">&#8249;</a>
+      <div class="mid">
+        <div class="lbl">
+          {{ day_label }}
+          {% if not is_today %}<a href="/" class="today-btn">TODAY</a>{% endif %}
+        </div>
+        <div class="sub">{{ today_label }}</div>
+      </div>
+      <a href="/?date={{ next_date }}" title="Next day">&#8250;</a>
+    </div>
+
+    <div class="section-head">
+      <h2>Schedule</h2>
+      <span class="hint">Full 24 hours</span>
+    </div>
+
+    <div class="timeline">
+      {% for slot in hours %}
+        <div class="hour-row
+             {% if is_today and slot.hour < current_hour %}past{% endif %}
+             {% if is_today and slot.hour == current_hour %}current{% endif %}"
+             {% if is_today and slot.hour == current_hour %}id="now-row"{% endif %}>
+          <div class="hour-label">{{ slot.label }}</div>
+          <div class="hour-body">
+            {% for task in slot.tasks %}
+              <div class="task
+                   {% if task.status == 'done' %}done{% endif %}
+                   {% if task.status == 'open' %}open{% endif %}
+                   {% if task.status == 'upcoming' and task.snooze_label %}snoozed{% endif %}
+                   {% if task.goal_id and task.status == 'upcoming' and not task.snooze_label %}goal{% endif %}">
+                <span class="task-time">{{ task.time_label }}</span>
+                <span class="task-main">
+                  <div class="task-title">{{ task.title }}</div>
+                  {% if task.goal_title %}
+                    <div class="task-meta">Part of: {{ task.goal_title }}</div>
+                  {% endif %}
+                </span>
+
+                {% if task.status == 'upcoming' and task.snooze_label %}
+                  <span class="badge">&#8635; {{ task.snooze_label }}</span>
+                {% elif task.status == 'open' %}
+                  <span class="badge">still open</span>
+                {% elif task.routine_id %}
+                  <span class="badge rt">routine</span>
+                {% elif task.goal_id %}
+                  <span class="badge gl">goal</span>
+                {% endif %}
+
+                <span class="task-actions">
+                  <form method="POST" action="/tasks/{{ task.id }}/toggle">
+                    <button class="icon-btn check" type="submit"
+                      title="{% if task.status == 'done' %}Mark not done{% else %}Mark done{% endif %}">
+                      {% if task.status == 'done' %}&#8634;{% else %}&#10003;{% endif %}
+                    </button>
+                  </form>
+                  <button class="icon-btn" type="button" title="Edit"
+                    onclick="openEdit('{{ task.id }}',
+                             '{{ task.title|replace("\\","\\\\")|replace("'","\\'") }}',
+                             '{{ "%02d"|format(task.hour) }}:{{ "%02d"|format(task.minute) }}')">
+                    &#9998;</button>
+                  <form method="POST" action="/tasks/{{ task.id }}/delete">
+                    <button class="icon-btn del" type="submit" title="Delete">&#10005;</button>
+                  </form>
+                </span>
+              </div>
+            {% endfor %}
+          </div>
+          {% if is_today and slot.hour == current_hour %}
+            <div class="now-line" style="top:{{ (current_minute/60*100)|round(1) }}%;"></div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- ROUTINES                                                -->
+  <!-- ======================================================= -->
+  <div class="panel" id="panel-routines">
+    <div class="section-head">
+      <h2>Recurring Routines</h2>
+      <span class="hint">Repeat automatically</span>
+    </div>
+
+    {% if routines %}
+      {% for r in routines %}
+        <div class="card {% if not r.active %}paused{% endif %}">
+          <div class="card-row">
+            <div class="grow">
+              <h3>{{ r.title }}</h3>
+              <div class="meta">
+                {{ "%d:%02d"|format(r.hour % 12 or 12, r.minute) }}
+                {{ "AM" if r.hour < 12 else "PM" }}
+                {% if not r.active %} · paused{% endif %}
+              </div>
+              <div class="daychips">
+                {% for i in range(7) %}
+                  <span class="daychip {% if i in r.days %}on{% endif %}">
+                    {{ day_names[i] }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <button class="btn sm" onclick="openRoutineEdit('{{ r.id }}',
+                '{{ r.title|replace("\\","\\\\")|replace("'","\\'") }}',
+                '{{ "%02d"|format(r.hour) }}:{{ "%02d"|format(r.minute) }}',
+                {{ r.days|tojson }})">Edit</button>
+              <form method="POST" action="/routines/{{ r.id }}/pause">
+                <button class="btn sm" style="width:100%;" type="submit">
+                  {% if r.active %}Pause{% else %}Resume{% endif %}</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        No routines yet.<br>
+        Things like Wake up, Exercise, Lunch — activities that repeat
+        on the same days each week.
+      </div>
+    {% endif %}
+
+    <button class="btn primary full" style="margin-top:12px;"
+            onclick="openModal('routine-overlay')">+ New Routine</button>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- GOALS                                                   -->
+  <!-- ======================================================= -->
+  <div class="panel" id="panel-goals">
+    <div class="section-head">
+      <h2>Long-term Goals</h2>
+      <span class="hint">Broken into sessions</span>
+    </div>
+
+    {% if goals %}
+      {% for g in goals %}
+        <div class="card">
+          <div class="card-row">
+            <div class="grow">
+              <h3>{{ g.title }}</h3>
+              <div class="meta">{{ g.weeks }} weeks ·
+                {{ g.progress.done }} of {{ g.progress.total }} sessions done</div>
+              <div class="progress">
+                <span style="width:{{ g.progress.percent }}%;"></span>
+              </div>
+            </div>
+            <form method="POST" action="/goals/{{ g.id }}/delete"
+                  onsubmit="return confirm('Remove this goal? Future sessions will be removed too.')">
+              <button class="btn sm danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        No goals yet.<br>
+        Try something like "I want to become a web developer in one month"
+        and {{ app_name }} will build a plan you can review.
+      </div>
+    {% endif %}
+
+    <button class="btn primary full" style="margin-top:12px;"
+            onclick="openModal('goal-overlay')">+ New Goal</button>
+  </div>
+</div>
+
+<!-- ============ BOTTOM BAR ============ -->
+<div class="add-bar">
+  <div class="add-inner">
+    <button class="add-btn" onclick="openAdd()">+ Add Task</button>
+    <button class="mic-btn" id="mic-btn" onclick="toggleVoice()"
+            title="Speak a task">&#127908;</button>
+  </div>
+</div>
+
+<!-- ============ ADD TASK ============ -->
+<div class="overlay" id="add-overlay" onclick="backdrop(event,'add-overlay')">
+  <div class="modal">
+    <h3>New Task</h3>
+    <p class="sub">Describe it, then set the exact time.</p>
+    <form method="POST" action="/tasks">
+      <input type="hidden" name="date" value="{{ date }}">
+      <label for="add-title">Task</label>
+      <input type="text" id="add-title" name="title"
+             placeholder="Finish assignment" required autocomplete="off">
+      <label for="add-time">Time</label>
+      <input type="time" id="add-time" name="time" required>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal('add-overlay')">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ EDIT TASK ============ -->
+<div class="overlay" id="edit-overlay" onclick="backdrop(event,'edit-overlay')">
+  <div class="modal">
+    <h3>Edit Task</h3>
+    <p class="sub">Change the description or the time.</p>
+    <form method="POST" id="edit-form">
+      <label for="edit-title">Task</label>
+      <input type="text" id="edit-title" name="title" required autocomplete="off">
+      <label for="edit-time">Time</label>
+      <input type="time" id="edit-time" name="time" required>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal('edit-overlay')">Cancel</button>
+        <button type="submit" class="btn primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ ROUTINE ============ -->
+<div class="overlay" id="routine-overlay" onclick="backdrop(event,'routine-overlay')">
+  <div class="modal">
+    <h3 id="routine-heading">New Routine</h3>
+    <p class="sub">Something that repeats on the same days each week.</p>
+    <form method="POST" id="routine-form" action="/routines">
+      <label for="rt-title">Activity</label>
+      <input type="text" id="rt-title" name="title" placeholder="Exercise"
+             required autocomplete="off">
+      <label for="rt-time">Time</label>
+      <input type="time" id="rt-time" name="time" required>
+      <label>Repeats on</label>
+      <div class="daypick">
+        {% for i in range(7) %}
+          <label><input type="checkbox" name="days" value="{{ i }}"
+                        class="rt-day"><span>{{ day_names[i] }}</span></label>
+        {% endfor %}
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal('routine-overlay')">Cancel</button>
+        <button type="submit" class="btn primary">Save routine</button>
+      </div>
+    </form>
+    <form method="POST" id="routine-delete-form" style="margin-top:9px;display:none;"
+          onsubmit="return confirm('Delete this routine? Past days are kept.')">
+      <button class="btn full danger" type="submit">Delete routine</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ GOAL ============ -->
+<div class="overlay" id="goal-overlay" onclick="backdrop(event,'goal-overlay')">
+  <div class="modal">
+
+    <div id="goal-step-1">
+      <h3>New Goal</h3>
+      <p class="sub">Tell me what you want to achieve, and by when.</p>
+      <label for="goal-text">Your goal</label>
+      <input type="text" id="goal-text"
+             placeholder="I want to become a web developer in one month"
+             autocomplete="off">
+      <div class="hint-list">
+        Examples: learn Python in 6 weeks · get fit in 2 months ·
+        pass my exams in 3 weeks
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal('goal-overlay')">Cancel</button>
+        <button type="button" class="btn primary" onclick="planGoal()">Build a plan</button>
+      </div>
+    </div>
+
+    <div id="goal-step-2" style="display:none;">
+      <h3 id="goal-title-2">Your plan</h3>
+      <p class="sub" id="goal-sub-2"></p>
+      <div id="goal-plan"></div>
+      <label for="goal-time">What time works for these sessions?</label>
+      <input type="time" id="goal-time" value="19:00">
+      <label>Which days?</label>
+      <div class="daypick">
+        {% for i in range(7) %}
+          <label><input type="checkbox" class="goal-day" value="{{ i }}"
+                        {% if i < 5 %}checked{% endif %}>
+                 <span>{{ day_names[i] }}</span></label>
+        {% endfor %}
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="goalBack()">Back</button>
+        <button type="button" class="btn primary" onclick="previewGoal()">
+          See the schedule</button>
+      </div>
+    </div>
+
+    <div id="goal-step-3" style="display:none;">
+      <h3>Proposed schedule</h3>
+      <p class="sub" id="goal-sub-3"></p>
+      <div class="preview-list" id="goal-preview"></div>
+      <div class="parse-warn">
+        This is a proposal. Nothing is saved until you accept it,
+        and you can go back and change the time.
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="goalStep(2)">Change time</button>
+        <button type="button" class="btn primary" onclick="acceptGoal()">
+          Accept schedule</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ VOICE / NATURAL LANGUAGE ============ -->
+<div class="overlay" id="voice-overlay" onclick="backdrop(event,'voice-overlay')">
+  <div class="modal">
+    <h3 id="voice-heading">Tell me what you need to do</h3>
+    <p class="sub">Type it or speak it, the way you'd say it out loud.</p>
+
+    <textarea id="voice-text"
+      placeholder="Today I need to finish my assignment at 2 PM, go to the bank at 4 PM and call Sarah at 7"></textarea>
+
+    <div id="voice-status" class="hint-list" style="display:none;"></div>
+
+    <div class="modal-actions" id="voice-actions-1">
+      <button type="button" class="btn" onclick="closeModal('voice-overlay')">Cancel</button>
+      <button type="button" class="btn primary" onclick="parseText()">
+        Understand this</button>
+    </div>
+
+    <div id="voice-results" style="display:none;">
+      <div id="voice-warn"></div>
+      <div id="voice-rows"></div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button type="button" class="btn" onclick="voiceReset()">Start over</button>
+        <button type="button" class="btn primary" onclick="confirmParsed()">
+          Save these</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   TABS
+   ========================================================= */
+function showTab(name, el) {
+  document.querySelectorAll('.panel').forEach(function(p){
+    p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.classList.remove('active'); });
+  document.getElementById('panel-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+/* =========================================================
+   MODALS
+   ========================================================= */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function backdrop(e,id){ if(e.target.id===id) closeModal(id); }
+
+function openAdd(){
+  openModal('add-overlay');
+  document.getElementById('add-title').focus();
+}
+function openEdit(id,title,time){
+  document.getElementById('edit-form').action = '/tasks/'+id+'/edit';
+  document.getElementById('edit-title').value = title;
+  document.getElementById('edit-time').value = time;
+  openModal('edit-overlay');
+}
+function openRoutineEdit(id,title,time,days){
+  document.getElementById('routine-heading').textContent = 'Edit Routine';
+  document.getElementById('routine-form').action = '/routines/'+id+'/edit';
+  document.getElementById('rt-title').value = title;
+  document.getElementById('rt-time').value = time;
+  document.querySelectorAll('.rt-day').forEach(function(cb){
+    cb.checked = days.indexOf(parseInt(cb.value)) !== -1;
+  });
+  var del = document.getElementById('routine-delete-form');
+  del.action = '/routines/'+id+'/delete';
+  del.style.display = 'block';
+  openModal('routine-overlay');
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.overlay').forEach(function(o){
+      o.classList.remove('open'); });
+  }
+});
+
+/* =========================================================
+   THE ALARM
+   Python can't reach into an open page, so the page asks the
+   server every 5 seconds whether anything is due.
+   ========================================================= */
+var currentTaskId = null, notified = null;
+
+function askPermission(){
+  if(!('Notification' in window)) return;
+  Notification.requestPermission().then(updateStrip);
+}
+function updateStrip(){
+  var strip = document.getElementById('permission-strip');
+  if(!('Notification' in window)){ strip.classList.remove('show'); return; }
+  if(Notification.permission === 'default') strip.classList.add('show');
+  else strip.classList.remove('show');
+}
+function sendNotification(task){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  var body = 'Time to ' + task.title.charAt(0).toLowerCase() + task.title.slice(1) + '.';
+  if(task.goal_title) body += ' Part of: ' + task.goal_title + '.';
+  var n = new Notification("It's " + task.time_label, {
+    body: body, tag: 'cadence-' + task.id, requireInteraction: true });
+  n.onclick = function(){ window.focus(); n.close(); };
+}
+function playChime(){
+  try{
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    var ctx = new Ctx();
+    [[880,0],[1174.7,0.18]].forEach(function(p){
+      var osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type='sine'; osc.frequency.value=p[0];
+      osc.connect(g); g.connect(ctx.destination);
+      var t = ctx.currentTime + p[1];
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.25,t+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);
+      osc.start(t); osc.stop(t+0.6);
+    });
+  }catch(e){}
+}
+function showAlarm(task){
+  currentTaskId = task.id;
+  document.getElementById('alarm-kicker').textContent =
+    task.snooze_count > 0 ? 'Reminder · snoozed ' + task.snooze_count + '\u00d7'
+                          : 'Reminder';
+  document.getElementById('alarm-headline').textContent =
+    "It's " + task.time_label + '. Time to ' +
+    task.title.charAt(0).toLowerCase() + task.title.slice(1) + '.';
+  document.getElementById('alarm-sub').textContent =
+    'Scheduled for ' + task.time_label + ' today.';
+  var g = document.getElementById('alarm-goal');
+  if(task.goal_title){
+    g.textContent = 'This session is part of your goal: ' + task.goal_title;
+    g.style.display = 'inline-block';
+  } else { g.style.display = 'none'; }
+  document.getElementById('alarm').classList.add('show');
+  document.title = '(1) ' + {{ app_name|tojson }};
+}
+function hideAlarm(){
+  document.getElementById('alarm').classList.remove('show');
+  currentTaskId = null;
+  document.title = {{ app_name|tojson }};
+}
+function respond(action){
+  if(!currentTaskId) return;
+  var id = currentTaskId;
+  hideAlarm();
+  fetch('/tasks/'+id+'/respond',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:action})
+  }).then(function(){ notified=null; location.reload(); })
+    .catch(function(){ location.reload(); });
+}
+function checkDue(){
+  fetch('/api/due').then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.task){ if(currentTaskId) hideAlarm(); return; }
+      var key = data.task.id + ':' + data.task.snooze_count;
+      if(currentTaskId === data.task.id && notified === key) return;
+      showAlarm(data.task);
+      if(notified !== key){
+        sendNotification(data.task); playChime(); notified = key;
+      }
+    }).catch(function(){});
+}
+
+/* =========================================================
+   NATURAL LANGUAGE + VOICE
+   Voice is just another way of typing. Same parser, same
+   confirmation step — never a separate task system.
+   ========================================================= */
+var parsedResults = [];
+var recognition = null, listening = false;
+
+function toggleVoice(){
+  openModal('voice-overlay');
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    setStatus('Your browser can\'t do speech. Type it instead — ' +
+              'it works exactly the same.');
+    document.getElementById('voice-text').focus();
+    return;
+  }
+  if(listening){ stopVoice(); return; }
+  startVoice(SR);
+}
+function setStatus(msg){
+  var s = document.getElementById('voice-status');
+  s.textContent = msg; s.style.display = msg ? 'block' : 'none';
+}
+function startVoice(SR){
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+
+  recognition.onstart = function(){
+    listening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    setStatus('Listening… say something like "call Sarah at 7 PM".');
+  };
+  recognition.onresult = function(e){
+    var text = '';
+    for(var i=0;i<e.results.length;i++) text += e.results[i][0].transcript;
+    document.getElementById('voice-text').value = text;
+  };
+  recognition.onerror = function(e){
+    setStatus(e.error === 'not-allowed'
+      ? 'Microphone blocked. Allow it in your browser, or just type instead.'
+      : 'Didn\'t catch that. Try again, or type it.');
+    stopVoice();
+  };
+  recognition.onend = function(){
+    stopVoice();
+    var t = document.getElementById('voice-text').value.trim();
+    if(t){ setStatus('Heard: "' + t + '"'); parseText(); }
+  };
+  try { recognition.start(); }
+  catch(err){ setStatus('Couldn\'t start the microphone. Type it instead.'); }
+}
+function stopVoice(){
+  listening = false;
+  document.getElementById('mic-btn').classList.remove('listening');
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+}
+
+function parseText(){
+  var text = document.getElementById('voice-text').value.trim();
+  if(!text) return;
+  fetch('/api/parse',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text:text})
+  }).then(function(r){ return r.json(); })
+    .then(function(data){ renderParsed(data.results); })
+    .catch(function(){ setStatus('Something went wrong. Try again.'); });
+}
+
+function renderParsed(results){
+  parsedResults = results;
+  var rows = document.getElementById('voice-rows');
+  var warn = document.getElementById('voice-warn');
+  rows.innerHTML = ''; warn.innerHTML = '';
+
+  var good = results.filter(function(r){ return r.ok; });
+  var bad  = results.filter(function(r){ return !r.ok; });
+
+  if(good.length === 0){
+    warn.innerHTML = '<div class="parse-fail">I couldn\'t find a time in that. ' +
+      'Every task needs one — I won\'t guess a time for you. ' +
+      'Try "call Sarah at 7 PM".</div>';
+  } else if(bad.length){
+    warn.innerHTML = '<div class="parse-warn">' + bad.length +
+      ' part(s) had no clear time, so I left them out.</div>';
+  }
+
+  var anyAmbiguous = good.some(function(r){ return r.ambiguous; });
+  if(anyAmbiguous){
+    warn.innerHTML += '<div class="parse-warn">Some times were ambiguous ' +
+      '(is "at 6" morning or evening?). I assumed PM — please check ' +
+      'before saving.</div>';
+  }
+
+  good.forEach(function(r, i){
+    var row = document.createElement('div');
+    row.className = 'parse-row';
+    row.innerHTML =
+      '<input type="text" value="' + r.title.replace(/"/g,'&quot;') +
+        '" data-i="' + i + '" class="p-title">' +
+      '<input type="time" value="' + r.time_value +
+        '" data-i="' + i + '" class="p-time">';
+    rows.appendChild(row);
+    var note = document.createElement('div');
+    note.className = 'hint-list';
+    note.style.marginBottom = '0';
+    note.textContent = r.day_label;
+    rows.appendChild(note);
+  });
+
+  document.getElementById('voice-actions-1').style.display = 'none';
+  document.getElementById('voice-results').style.display =
+    good.length ? 'block' : 'none';
+  if(!good.length){
+    document.getElementById('voice-actions-1').style.display = 'flex';
+  }
+}
+
+function confirmParsed(){
+  var titles = document.querySelectorAll('.p-title');
+  var times  = document.querySelectorAll('.p-time');
+  var good = parsedResults.filter(function(r){ return r.ok; });
+  var out = [];
+  for(var i=0;i<titles.length;i++){
+    out.push({ title: titles[i].value,
+               time: times[i].value,
+               date: good[i].date });
+  }
+  fetch('/api/confirm',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({tasks: out})
+  }).then(function(r){ return r.json(); })
+    .then(function(){ location.reload(); });
+}
+
+function voiceReset(){
+  document.getElementById('voice-text').value = '';
+  document.getElementById('voice-results').style.display = 'none';
+  document.getElementById('voice-actions-1').style.display = 'flex';
+  document.getElementById('voice-rows').innerHTML = '';
+  document.getElementById('voice-warn').innerHTML = '';
+  setStatus('');
+}
+
+/* =========================================================
+   GOALS
+   Propose -> review -> adjust -> accept. Never auto-applied.
+   ========================================================= */
+var goalData = null, goalSessions = [];
+
+function goalStep(n){
+  [1,2,3].forEach(function(i){
+    document.getElementById('goal-step-'+i).style.display =
+      (i===n) ? 'block' : 'none';
+  });
+}
+function goalBack(){ goalStep(1); }
+
+function planGoal(){
+  var text = document.getElementById('goal-text').value.trim();
+  if(!text) return;
+  fetch('/api/goal/plan',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({goal:text})
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok) return;
+      goalData = d;
+      document.getElementById('goal-title-2').textContent = d.title;
+      document.getElementById('goal-sub-2').textContent =
+        d.weeks + ' weeks · here\'s what I suggest covering.';
+      var html = '';
+      d.plan.forEach(function(w){
+        html += '<div class="week-block"><h4>Week ' + w.week + '</h4><ul>';
+        w.topics.forEach(function(t){ html += '<li>' + t + '</li>'; });
+        html += '</ul></div>';
+      });
+      document.getElementById('goal-plan').innerHTML = html;
+      goalStep(2);
+    });
+}
+
+function previewGoal(){
+  var time = document.getElementById('goal-time').value;
+  var days = [];
+  document.querySelectorAll('.goal-day').forEach(function(cb){
+    if(cb.checked) days.push(parseInt(cb.value));
+  });
+  if(!time || !days.length) return;
+
+  fetch('/api/goal/preview',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({plan:goalData.plan, time:time, days:days})
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok) return;
+      goalSessions = d.sessions;
+      document.getElementById('goal-sub-3').textContent =
+        d.count + ' sessions for "' + goalData.title + '".';
+      var html = '';
+      d.sessions.forEach(function(s){
+        html += '<div class="preview-item"><span class="d">' + s.day_label +
+                '</span><span class="t">' + s.time_label + '</span><span>' +
+                s.topic + '</span></div>';
+      });
+      document.getElementById('goal-preview').innerHTML = html;
+      goalStep(3);
+    });
+}
+
+function acceptGoal(){
+  fetch('/api/goal/accept',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({title:goalData.title, weeks:goalData.weeks,
+                          plan:goalData.plan, sessions:goalSessions})
+  }).then(function(r){ return r.json(); })
+    .then(function(){ location.reload(); });
+}
+
+/* =========================================================
+   START
+   ========================================================= */
+window.addEventListener('load', function(){
+  updateStrip();
+  var row = document.getElementById('now-row');
+  if(row) row.scrollIntoView({block:'center'});
+  {% if is_today %}
+  checkDue();
+  setInterval(checkDue, 5000);
+  {% endif %}
+});
+</script>
+
+</body>
+</html>

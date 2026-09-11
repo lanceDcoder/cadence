@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+                Helvetica,Arial,sans-serif;
+    background:#f7f7f9; color:#111827; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .box {
+    background:#fff; border:1px solid #e5e7eb; border-radius:16px;
+    padding:38px 34px; max-width:420px; width:100%; text-align:center;
+  }
+  .code {
+    font-size:13px; font-weight:800; letter-spacing:.09em;
+    text-transform:uppercase; color:#9ca3af; margin-bottom:12px;
+  }
+  h1 { font-size:21px; font-weight:650; margin-bottom:9px; }
+  p { font-size:14.5px; color:#6b7280; line-height:1.6; margin-bottom:22px; }
+  a {
+    display:inline-block; background:#4f46e5; color:#fff; text-decoration:none;
+    padding:11px 22px; border-radius:9px; font-size:14.5px; font-weight:600;
+  }
+  a:hover { background:#4338ca; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="code">Error {{ code }}</div>
+    <h1>{{ message }}</h1>
+    <p>
+      {% if code == 404 %}
+        The link may be wrong, or the page may have moved.
+      {% else %}
+        Your tasks are safe. This has been logged so it can be fixed.
+      {% endif %}
+    </p>
+    <a href="/">Back to your schedule</a>
+  </div>
+</body>
+</html>

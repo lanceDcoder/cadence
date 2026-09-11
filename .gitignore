@@ -1,0 +1,36 @@
+# Things that should never be committed or shared.
+
+# The secret key. Unique per machine, regenerates automatically.
+.secret_key
+
+# Your virtual environment — everyone builds their own.
+.venv/
+venv/
+env/
+
+# Python's compiled cache.
+__pycache__/
+*.py[cod]
+
+# SQLite runtime data. User databases, account databases and WAL/SHM
+# files contain private application data and should never be committed.
+*.db
+*.db-wal
+*.db-shm
+
+# Generated at runtime.
+backups/
+logs/
+
+# Accounts (only exist if you switch the feature on).
+# accounts.db holds password hashes; users/ holds each person's
+# schedule. Neither belongs in version control.
+accounts.db
+users/
+tasks.json.migrated
+
+# Editor and OS clutter.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

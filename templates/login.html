@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · {{ app_name }}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --accent:#6366f1; --accent-2:#8b5cf6; --accent-soft:#eef0ff;
+    --ink:#12141c; --muted:#5f6579; --faint:#9aa0b4;
+    --line:#e8eaf0; --bg:#f4f5fa; --surface:#fff; --surface-2:#fafbfe;
+    --red:#e11d48; --red-soft:#fff1f3;
+    --sh-3:0 4px 8px rgba(18,20,28,.06), 0 18px 48px rgba(18,20,28,.13);
+    --sh-accent:0 6px 20px rgba(99,102,241,.30);
+    --ease:cubic-bezier(.4,0,.2,1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent:#818cf8; --accent-2:#a78bfa; --accent-soft:#20223a;
+      --ink:#eceef6; --muted:#9aa1b8; --faint:#6b7186;
+      --line:#282b3d; --bg:#0d0e15; --surface:#161824; --surface-2:#1b1e2c;
+      --red:#fb7185; --red-soft:#2b1620;
+      --sh-3:0 4px 8px rgba(0,0,0,.36), 0 18px 48px rgba(0,0,0,.52);
+    }
+  }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+                Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+    min-height:100vh; display:flex; align-items:center;
+    justify-content:center; padding:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .box { width:100%; max-width:400px; }
+  .brand { text-align:center; margin-bottom:26px; }
+  .mark {
+    width:60px; height:60px; margin:0 auto 14px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border-radius:18px; display:flex; align-items:center;
+    justify-content:center; font-size:28px;
+    box-shadow:var(--sh-accent);
+  }
+  .brand h1 { font-size:25px; font-weight:700; letter-spacing:-.02em; }
+  .brand p { font-size:14px; color:var(--muted); margin-top:4px; }
+
+  .card {
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:22px; padding:28px; box-shadow:var(--sh-3);
+  }
+  label { display:block; font-size:12.5px; font-weight:650;
+    color:var(--muted); margin-bottom:7px; }
+  input {
+    width:100%; padding:12px 13px; font-size:15px;
+    border:1.5px solid var(--line); border-radius:11px;
+    font-family:inherit; margin-bottom:15px;
+    background:var(--surface-2); color:var(--ink);
+    transition:all .18s var(--ease);
+  }
+  input:focus { outline:none; border-color:var(--accent);
+    background:var(--surface); box-shadow:0 0 0 4px var(--accent-soft); }
+  .btn {
+    width:100%; padding:13px; border:none; border-radius:12px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#fff; font-size:15.5px; font-weight:650; cursor:pointer;
+    font-family:inherit; box-shadow:var(--sh-accent);
+    transition:transform .18s var(--ease), filter .18s var(--ease);
+  }
+  .btn:hover { filter:brightness(1.07); transform:translateY(-2px); }
+  .btn:active { transform:translateY(0) scale(.99); }
+
+  .error {
+    background:var(--red-soft); border:1px solid var(--red);
+    color:var(--red); font-size:13.5px; padding:11px 13px;
+    border-radius:11px; margin-bottom:16px;
+  }
+  .note {
+    background:var(--accent-soft); border:1px solid var(--accent);
+    color:var(--accent); font-size:13px; padding:11px 13px;
+    border-radius:11px; margin-bottom:16px; line-height:1.55;
+  }
+  .foot { text-align:center; font-size:13.5px; color:var(--muted);
+    margin-top:18px; }
+  .foot a { color:var(--accent); font-weight:600; text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  .tip { text-align:center; font-size:12px; color:var(--faint);
+    margin-top:20px; line-height:1.6; }
+  code { background:var(--surface); border:1px solid var(--line);
+    padding:1px 6px; border-radius:5px; font-size:11.5px; }
+</style>
+</head>
+<body>
+  <div class="box">
+
+    <div class="brand">
+      <div class="mark">🗓️</div>
+      <h1>{{ app_name }}</h1>
+      <p>Sign in to your schedule</p>
+    </div>
+
+    <div class="card">
+      {% if no_accounts_yet %}
+        <div class="note">
+          No accounts exist yet. <a href="{{ url_for('signup') }}"
+          style="color:inherit;font-weight:700;">Create the first one</a>
+          — it becomes the owner.
+        </div>
+      {% endif %}
+
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+      <form method="POST" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username"
+               value="{{ username }}" autocomplete="username"
+               autofocus required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               autocomplete="current-password" required>
+
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+
+      {% if allow_signup %}
+        <div class="foot">
+          No account? <a href="{{ url_for('signup') }}">Create one</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="tip">
+      Accounts are switched on.<br>
+      To go back to single-user mode, restart without
+      <code>CADENCE_ACCOUNTS=on</code>.
+    </div>
+
+  </div>
+</body>
+</html>
