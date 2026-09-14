@@ -128,12 +128,20 @@ def validate_production_config():
     if not is_production():
         return
     key = os.environ.get("CADENCE_SECRET_KEY", "").strip()
-    if key and len(key) >= 32:
-        return
-    key_file = DATA_DIR / ".secret_key"
-    if key_file.exists() and len(key_file.read_text().strip()) >= 32:
-        return
-    raise RuntimeError(
-        "Production requires CADENCE_SECRET_KEY (32+ characters) "
-        "or a private .secret_key file."
-    )
+    if not (key and len(key) >= 32):
+        key_file = DATA_DIR / ".secret_key"
+        if not (key_file.exists() and len(key_file.read_text().strip()) >= 32):
+            raise RuntimeError(
+                "Production requires CADENCE_SECRET_KEY (32+ characters) "
+                "or a private .secret_key file."
+            )
+
+    # Vercel functions have an ephemeral filesystem. SQLite may appear to
+    # work during one request, then lose schedules when the next instance
+    # starts. The Vercel adapter uses PostgreSQL when DATABASE_URL is set,
+    # so refuse a deployment that would put public data at risk.
+    if os.environ.get("VERCEL") == "1" and not os.environ.get("DATABASE_URL"):
+        raise RuntimeError(
+            "Vercel deployment requires DATABASE_URL. Connect a PostgreSQL "
+            "database (for example Neon) before deploying Cadence."
+        )

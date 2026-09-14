@@ -162,6 +162,26 @@ export CADENCE_SIGNUP=on
 
 Put HTTPS in front of Waitress using your hosting provider or reverse proxy. Do not expose a production Cadence instance over plain HTTP.
 
+### Vercel
+
+The included `vercel.json` is ready for Vercel's Python runtime, but a
+serverless function cannot safely keep a SQLite database. Before deploying,
+connect a PostgreSQL database (such as Neon) and set these Vercel Production
+environment variables:
+
+```text
+CADENCE_ENV=production
+CADENCE_SECRET_KEY=<a unique random value, at least 32 characters>
+DATABASE_URL=<your PostgreSQL connection string>
+CADENCE_ACCOUNTS=on
+CADENCE_SIGNUP=on
+```
+
+Cadence now refuses to boot on Vercel without `DATABASE_URL`, preventing an
+unsafe deployment where account schedules could disappear between requests.
+Use `CADENCE_SIGNUP=off` if you are not intentionally offering public
+registration.
+
 `deploy.sh` checks dependencies, database integrity, backups, tests when available, and production settings before starting. The source repository should not contain `cadence.db`, `accounts.db`, `users/`, backups, logs, or `.secret_key`; those are runtime/private data.
 
 ## Two limits worth knowing

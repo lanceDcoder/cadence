@@ -378,7 +378,7 @@ def create_user(username, password, display_name=None, is_admin=False):
     # leave a login that can never reach its own data.
     import storage
     try:
-        storage.init_db_at(USER_DATA_DIR / db_file)
+        storage.init_db_at(db_file if using_postgres() else USER_DATA_DIR / db_file)
     except Exception:
         cleanup = _connect()
         try:
@@ -386,11 +386,14 @@ def create_user(username, password, display_name=None, is_admin=False):
                 cleanup.execute("DELETE FROM users WHERE id = ?", (user_id,))
         finally:
             cleanup.close()
-        for suffix in ("", "-wal", "-shm"):
-            try:
-                (USER_DATA_DIR / (db_file + suffix)).unlink()
-            except FileNotFoundError:
-                pass
+        if using_postgres():
+            storage.drop_database(db_file)
+        else:
+            for suffix in ("", "-wal", "-shm"):
+                try:
+                    (USER_DATA_DIR / (db_file + suffix)).unlink()
+                except FileNotFoundError:
+                    pass
         raise
 
     return get_user(user_id), None

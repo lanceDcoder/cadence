@@ -219,19 +219,27 @@
     background:var(--surface); border:1px solid var(--line);
     border-radius:var(--r-md); padding:9px 11px; margin-bottom:14px;
     box-shadow:var(--sh-1); }
-  .daynav a { width:36px; height:36px; border-radius:var(--r-sm);
+  .daynav > a { width:36px; height:36px; border-radius:var(--r-sm);
     border:1px solid var(--line); display:flex; align-items:center;
     justify-content:center; text-decoration:none; color:var(--muted);
     font-size:16px; transition:all .18s var(--ease); }
-  .daynav a:hover { background:var(--accent-soft); color:var(--accent);
+  .daynav > a:hover { background:var(--accent-soft); color:var(--accent);
     border-color:var(--accent); transform:translateY(-1px); }
-  .daynav .mid { text-align:center; }
-  .daynav .lbl { font-size:15px; font-weight:650; letter-spacing:-.01em; }
+  .daynav .mid { min-width:0; text-align:center; }
+  .daynav .lbl { display:flex; align-items:center; justify-content:center;
+    gap:8px; font-size:15px; font-weight:650; letter-spacing:-.01em; }
   .daynav .sub { font-size:11.5px; color:var(--faint); }
-  .daynav .today-btn { font-size:11px; background:var(--accent-soft);
-    color:var(--accent-ink); border-radius:20px; padding:3px 11px;
-    text-decoration:none; font-weight:700; margin-left:7px;
-    letter-spacing:.04em; }
+  .daynav .today-btn { display:inline-flex; align-items:center; min-height:28px;
+    width:auto; border:1px solid transparent; border-radius:999px;
+    padding:5px 10px; background:var(--accent-soft); color:var(--accent-ink);
+    text-decoration:none; font-size:10.5px; font-weight:750;
+    letter-spacing:.055em; line-height:1; white-space:nowrap;
+    transition:background .18s var(--ease), border-color .18s var(--ease),
+      color .18s var(--ease), transform .18s var(--ease); }
+  .daynav .today-btn:hover { background:var(--accent); color:#fff;
+    border-color:var(--accent); transform:translateY(-1px); }
+  .daynav a:focus-visible { outline:3px solid rgba(99,102,241,.35);
+    outline-offset:2px; }
 
   /* ---------- SECTION HEAD ---------- */
   .section-head { display:flex; align-items:baseline;
@@ -544,17 +552,19 @@
   <!-- ======================================================= -->
   <div class="panel active" id="panel-schedule">
 
-    <div class="daynav">
-      <a href="/?date={{ prev_date }}" title="Previous day">&#8249;</a>
+    <nav class="daynav" aria-label="Schedule date navigation">
+      <a href="{{ url_for('home', date=prev_date) }}" title="Previous day" aria-label="Previous day">&#8249;</a>
       <div class="mid">
         <div class="lbl">
           {{ day_label }}
-          {% if not is_today %}<a href="/" class="today-btn">GO TO TODAY</a>{% endif %}
+          {% if not is_today %}
+            <a href="{{ url_for('home') }}" class="today-btn" aria-label="Return to today's schedule">Go to today</a>
+          {% endif %}
         </div>
         <div class="sub">{{ today_label }}</div>
       </div>
-      <a href="/?date={{ next_date }}" title="Next day">&#8250;</a>
-    </div>
+      <a href="{{ url_for('home', date=next_date) }}" title="Next day" aria-label="Next day">&#8250;</a>
+    </nav>
 
     <div class="section-head">
       <h2>Schedule</h2>
