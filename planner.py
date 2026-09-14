@@ -41,6 +41,56 @@ from datetime import datetime, timedelta
 # project time — which is genuinely how learning works.
 
 TEMPLATES = {
+    "crochet": [
+        [
+            {"title": "Choose the shorts pattern, yarn, and tools",
+             "details": "Pick a beginner-friendly ruffled-shorts pattern in the intended size. Use yarn with the weight the pattern specifies, plus the matching hook, stitch markers, tape measure, scissors, and yarn needle. Read the whole pattern once and write down its gauge, waistband, rise, inseam, and ruffle instructions."},
+            {"title": "Make a gauge swatch and measure it",
+             "details": "Chain enough stitches for a 12 cm swatch, work the pattern's main stitch for 12 cm, then measure the centre 10 cm without stretching it. Count stitches and rows; change hook size and repeat until your numbers match the pattern. This prevents shorts that are too tight, loose, short, or long."},
+            {"title": "Practice the foundation stitches",
+             "details": "Practice a slip knot, even chains, single crochet, half-double crochet, double crochet, and a slip stitch. Keep the yarn feeding smoothly and make each stitch the same height. Finish a small rectangle with straight edges before starting the garment."},
+            {"title": "Learn to work in joined rounds",
+             "details": "Make a small ring or chain circle, join without twisting, place a stitch marker in the first stitch, and count every round. Practice joining with a slip stitch and turning when the pattern asks. Your sample should lie flat with no spiral-shaped gaps."},
+            {"title": "Practice increases, decreases, and checking fit",
+             "details": "Work a 20-stitch sample: add stitches evenly for an increase row, then remove them evenly for a decrease row. Learn to identify the top V of each stitch so you do not accidentally add stitches. Measure the sample before and after to see how shaping changes width."},
+        ],
+        [
+            {"title": "Crochet the waistband to the measured size",
+             "details": "Follow the pattern's waistband stitch count using your gauge. Join the foundation without twisting, keep the edge comfortably stretchy, and compare it with the wearer's waist or shorts that fit well. Do not continue until the circumference is correct."},
+            {"title": "Work the body to the crotch depth",
+             "details": "Crochet the body rounds exactly as the pattern states, counting at the end of every round. Try the piece against a body measurement or reference garment every few rounds. Stop at the specified crotch depth; this point determines how the legs will fit."},
+            {"title": "Shape and divide the two leg openings",
+             "details": "Follow the pattern carefully when it separates the front and back or skips chains for each leg. Mark the centre front, centre back, and each leg opening before crocheting. Count both sides so the two openings are symmetrical."},
+            {"title": "Crochet the first leg and check length",
+             "details": "Work the first leg in the required rounds, keeping the same tension used for the waistband. Measure from crotch to hem after a few rounds and compare with the desired inseam. Record the round count so the second leg can match."},
+            {"title": "Crochet the matching second leg",
+             "details": "Repeat the first leg with the identical stitch count and round count. Lay both legs flat side by side; their width, length, and stitch texture should match. Correct any mismatch now, before adding the ruffles."},
+        ],
+        [
+            {"title": "Plan the ruffle placement and fullness",
+             "details": "Use the pattern to mark each ruffle row on both legs. More stitches in a ruffle row create more fullness, so follow the stated increase ratio before improvising. Make a small ruffle sample first to confirm you like its density and drape."},
+            {"title": "Crochet the first ruffle evenly",
+             "details": "Join yarn neatly at the marked row, then work the prescribed increases around the leg. Spread increases evenly rather than placing them in one spot. The finished ruffle should wave naturally and lie flat where it attaches to the shorts."},
+            {"title": "Add remaining ruffle tiers",
+             "details": "Measure the distance between tiers before starting each one, and use the same stitch count on both legs. Check that the tiers do not pull the fabric upward or make one leg heavier. Compare the shorts from the front, back, and sides after each tier."},
+            {"title": "Weave in ends securely",
+             "details": "Thread each yarn tail through the back of several nearby stitches, change direction once, and trim only after it is secure. Do not weave through the ruffle edge in a way that flattens it. Gently tug each end to confirm it will not unravel."},
+            {"title": "Try on and make fit adjustments",
+             "details": "Try the shorts on over the intended underlayer. Check waist comfort, rise, leg openings, and whether the ruffles sit evenly. If the waist is loose, add an elastic channel only if the pattern supports it; if it is tight, do not force it—adjust before finishing."},
+        ],
+        [
+            {"title": "Make the remaining three shorts using a repeatable checklist",
+             "details": "Write down the final hook size, yarn, gauge, waistband stitch count, body round count, leg round count, and ruffle counts from the first pair. Use this checklist for pairs two through four so they match in size and style."},
+            {"title": "Keep colour changes clean and consistent",
+             "details": "For each new pair, choose colours before starting and note where every colour change happens. Change yarn at the final pull-through of a stitch, then weave in the tails as you go. Make both legs in the same colour order."},
+            {"title": "Block and shape each finished pair",
+             "details": "Follow the yarn label's washing instructions. Lay each pair flat to its measured dimensions, smooth the waistband, and arrange each ruffle with your fingers. Let it dry fully before measuring; do not stretch acrylic or delicate yarn aggressively."},
+            {"title": "Inspect seams, edges, and durability",
+             "details": "Check every join, waistband edge, leg opening, and ruffle attachment for loose stitches or ends. Turn the shorts inside out and gently stretch each area. Repair any weak point before wearing, gifting, or selling the pair."},
+            {"title": "Photograph and record the finished pattern notes",
+             "details": "Photograph all four pairs flat and worn on a mannequin or over an underlayer if available. Record yarn brand, hook, gauge, size, time spent, and any changes you made. These notes make the next batch faster and more consistent."},
+        ],
+    ],
     "web development": [
         ["HTML basics", "Semantic HTML", "CSS fundamentals",
          "Flexbox", "CSS Grid", "Build a static page"],
@@ -115,6 +165,7 @@ TEMPLATES = {
 
 # Words that point at a template.
 KEYWORDS = {
+    "crochet": ["crochet", "chrochet", "ruffle", "ruffled", "shorts", "amigurumi"],
     "web development": ["web", "website", "frontend", "front-end", "html",
                         "css", "javascript", "react", "web developer",
                         "full stack", "fullstack"],

@@ -259,15 +259,15 @@
   .hour-row.past .hour-label { opacity:.5; }
   .hour-row.current { background:linear-gradient(90deg,
     rgba(244,63,94,.07), transparent 62%); }
-  .hour-label { flex:0 0 86px; padding:14px 12px 14px 18px; font-size:12px;
+  .hour-label { position:relative; z-index:1; flex:0 0 86px; padding:14px 12px 14px 18px; font-size:12px;
     font-variant-numeric:tabular-nums; color:var(--faint);
     border-right:1px solid var(--line-soft); text-align:right;
     font-weight:500; letter-spacing:.01em; }
   .hour-row.current .hour-label { color:var(--now); font-weight:700; }
-  .hour-body { flex:1; padding:9px 13px; display:flex; flex-direction:column;
+  .hour-body { position:relative; z-index:1; flex:1; padding:9px 13px; display:flex; flex-direction:column;
     gap:7px; justify-content:center; }
   .now-line { position:absolute; left:86px; right:0; height:2px;
-    background:linear-gradient(90deg,var(--now),transparent); z-index:3; }
+    background:linear-gradient(90deg,var(--now),transparent); z-index:0; }
   .now-line::before { content:""; position:absolute; left:-5px; top:-3.5px;
     width:9px; height:9px; border-radius:50%; background:var(--now);
     box-shadow:0 0 0 4px rgba(244,63,94,.18); }
@@ -440,6 +440,7 @@
   .week-block ul { list-style:none; font-size:13px; color:var(--muted); }
   .week-block li { padding:3px 0; }
   .week-block li::before { content:"· "; color:var(--accent); font-weight:700; }
+  .week-block .topic-details { display:block; margin:3px 0 8px 11px; line-height:1.45; color:var(--text); }
 
   .parse-row { display:flex; gap:9px; align-items:center; padding:10px 0;
     border-bottom:1px solid var(--line-soft); }
@@ -1288,6 +1289,14 @@ function addGoalMessage(kind, message){
   chat.scrollTop = chat.scrollHeight;
 }
 
+function goalTopicHtml(topic){
+  var title = typeof topic === 'object' ? topic.title : topic;
+  var details = typeof topic === 'object' ? topic.details : '';
+  return '<li>' + escapeHtml(title || 'Session') +
+    (details ? '<span class="topic-details">' + escapeHtml(details) + '</span>' : '') +
+    '</li>';
+}
+
 function goalKeydown(event){
   if(event.key === 'Enter'){
     event.preventDefault();
@@ -1326,7 +1335,7 @@ function legacyPlanGoal(){
       var html = '';
       d.plan.forEach(function(w){
         html += '<div class="week-block"><h4>Week ' + w.week + '</h4><ul>';
-        w.topics.forEach(function(t){ html += '<li>' + t + '</li>'; });
+        w.topics.forEach(function(t){ html += goalTopicHtml(t); });
         html += '</ul></div>';
       });
       document.getElementById('goal-plan').innerHTML = html;
@@ -1358,7 +1367,7 @@ function planGoal(){
     var html = '';
     d.plan.forEach(function(w){
       html += '<div class="week-block"><h4>Week ' + w.week + '</h4><ul>';
-      w.topics.forEach(function(t){ html += '<li>' + escapeHtml(t) + '</li>'; });
+      w.topics.forEach(function(t){ html += goalTopicHtml(t); });
       html += '</ul></div>';
     });
     document.getElementById('goal-plan').innerHTML = html;
@@ -1457,7 +1466,9 @@ function renderGoalCheckin(data){
     byWeek[week].forEach(function(topic){
       var state = states['Week ' + week + '|' + topic.topic];
       var marker = state === 'done' ? ' ✓' : state === 'open' ? ' — not yet' : '';
-      html += '<li>' + escapeHtml(topic.topic + marker) + '</li>';
+      html += '<li>' + escapeHtml(topic.topic + marker) +
+        (topic.details ? '<span class="topic-details">' + escapeHtml(topic.details) + '</span>' : '') +
+        '</li>';
     });
     html += '</ul></div>';
   });

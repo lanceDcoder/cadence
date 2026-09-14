@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 import planner
 
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta2/models/{model}:generateMessage"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 
@@ -82,10 +82,13 @@ def build_goal_plan(goal, weeks):
         "[{\"week\": number, \"topics\": [{\"title\": string, "
         "\"details\": string}]}]}. Include exactly "
         f"{weeks} weeks, each with 3 to 7 specific, achievable topics. "
-        "Each title must be a concise task name. Each details value must explain "
-        "what to learn or do, which materials or techniques to use when relevant, "
-        "and a concrete practice or completion check. Make it practical and "
-        "specific to the user's goal."
+        "Each title must name one specific task; never use vague labels such as "
+        "'Learn the basics', 'Practice', or 'Go deeper'. Each details value must "
+        "be a 2-4 sentence, beginner-friendly explanation: define the exact skill, "
+        "name the materials or techniques needed, give ordered actions, and end "
+        "with a concrete completion or fit check. For craft goals, include gauge, "
+        "measurements, construction order, and finishing steps where relevant. "
+        "Make it practical and specific to the user's goal."
     )
     body = {
         "systemInstruction": {"parts": [{"text": instruction}]},

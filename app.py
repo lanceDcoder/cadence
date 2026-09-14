@@ -27,6 +27,9 @@ from zoneinfo import ZoneInfo
 
 from flask import (Flask, g, jsonify, redirect, render_template, request,
                    session, url_for)
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import auth
 import ai_assistant
