@@ -9,6 +9,7 @@
 
 Flask==3.1.3        # the web framework: turns Python functions into web pages
 waitress==3.0.2     # the production server that actually faces the internet
+psycopg[binary]==3.2.10  # PostgreSQL driver for Neon / Vercel deployment
 
 # Deliberately NOT here:
 #

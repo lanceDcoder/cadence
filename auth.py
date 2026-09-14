@@ -62,6 +62,7 @@ import config
 
 ACCOUNTS_DB = config.DATA_DIR / "accounts.db"
 USER_DATA_DIR = config.DATA_DIR / "users"
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
 MIN_PASSWORD = 8
 MAX_PASSWORD = 200          # scrypt is slow by design; cap the input
@@ -85,6 +86,54 @@ CREATE TABLE IF NOT EXISTS auth_attempts (
     attempts      INTEGER NOT NULL DEFAULT 0
 );
 """
+
+POSTGRES_ACCOUNTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    db_file TEXT NOT NULL,
+    is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0,1)),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_ci ON users(lower(username));
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    key TEXT PRIMARY KEY,
+    window_start BIGINT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+);
+"""
+
+
+def using_postgres():
+    return bool(DATABASE_URL)
+
+
+def _postgres_sql(sql):
+    return sql.replace("?", "%s")
+
+
+class _PostgresConnection:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, sql, params=None):
+        return self.conn.execute(_postgres_sql(sql), params or ())
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, _exc, _tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        return False
+
+    def close(self):
+        self.conn.close()
 
 
 # -------------------------------------------------------------
@@ -116,6 +165,15 @@ def allow_signup():
 # CONNECTING
 # -------------------------------------------------------------
 def _connect():
+    if using_postgres():
+        try:
+            import psycopg
+            from psycopg.rows import dict_row
+        except ImportError as exc:
+            raise RuntimeError(
+                "PostgreSQL is configured but psycopg is missing. "
+                "Run: pip install -r requirements.txt") from exc
+        return _PostgresConnection(psycopg.connect(DATABASE_URL, row_factory=dict_row))
     conn = sqlite3.connect(ACCOUNTS_DB)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -125,14 +183,24 @@ def _connect():
 
 def init_accounts():
     """Create the accounts file and the per-user data folder."""
-    USER_DATA_DIR.mkdir(exist_ok=True)
+    if not using_postgres():
+        USER_DATA_DIR.mkdir(exist_ok=True)
     conn = _connect()
     with conn:
-        conn.executescript(ACCOUNTS_SCHEMA)
-        conn.execute("DELETE FROM auth_attempts WHERE window_start < strftime('%s','now') - 86400")
+        if using_postgres():
+            for statement in POSTGRES_ACCOUNTS_SCHEMA.split(";"):
+                if statement.strip():
+                    conn.execute(statement)
+            conn.execute("DELETE FROM auth_attempts WHERE window_start < %s",
+                         (__import__("time").time() - 86400,))
+        else:
+            conn.executescript(ACCOUNTS_SCHEMA)
+            conn.execute("DELETE FROM auth_attempts WHERE window_start < strftime('%s','now') - 86400")
     conn.close()
 
     # Keep the folder private on Unix. Windows ignores this.
+    if using_postgres():
+        return
     try:
         os.chmod(USER_DATA_DIR, 0o700)
         if ACCOUNTS_DB.exists():
@@ -247,6 +315,11 @@ def get_user(user_id):
 def get_by_username(username):
     conn = _connect()
     try:
+        if using_postgres():
+            row = conn.execute(
+                "SELECT * FROM users WHERE lower(username) = lower(?)",
+                ((username or "").strip(),)).fetchone()
+            return _row_to_user(row)
         return _row_to_user(conn.execute(
             "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
             ((username or "").strip(),)).fetchone())
@@ -277,7 +350,9 @@ def create_user(username, password, display_name=None, is_admin=False):
         is_admin = True
 
     user_id = uuid.uuid4().hex[:12]
-    db_file = f"cadence_{user_id}.db"
+    # SQLite needs a file name; Neon uses the same field as a safe,
+    # per-user PostgreSQL schema name.
+    db_file = f"cadence_{user_id}" if using_postgres() else f"cadence_{user_id}.db"
 
     conn = _connect()
     try:
@@ -289,9 +364,11 @@ def create_user(username, password, display_name=None, is_admin=False):
                 (user_id, username, (display_name or username).strip()[:60],
                  generate_password_hash(password), db_file,
                  1 if is_admin else 0))
-    except sqlite3.IntegrityError:
+    except Exception as exc:
         # Someone claimed the name between the check and the insert.
-        return None, f"The name '{username}' is taken."
+        if (not using_postgres()) or "unique" in str(exc).lower():
+            return None, f"The name '{username}' is taken."
+        raise
     finally:
         conn.close()
 
@@ -330,9 +407,14 @@ def verify(username, password):
     user = get_by_username(username)
     conn = _connect()
     try:
-        row = conn.execute(
-            "SELECT password_hash FROM users WHERE username = ? COLLATE NOCASE",
-            ((username or "").strip(),)).fetchone()
+        if using_postgres():
+            row = conn.execute(
+                "SELECT password_hash FROM users WHERE lower(username) = lower(?)",
+                ((username or "").strip(),)).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT password_hash FROM users WHERE username = ? COLLATE NOCASE",
+                ((username or "").strip(),)).fetchone()
     finally:
         conn.close()
 
@@ -353,9 +435,13 @@ def touch_login(user_id):
     conn = _connect()
     try:
         with conn:
-            conn.execute(
-                "UPDATE users SET last_login = datetime('now') WHERE id = ?",
-                (user_id,))
+            if using_postgres():
+                conn.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                             (user_id,))
+            else:
+                conn.execute(
+                    "UPDATE users SET last_login = datetime('now') WHERE id = ?",
+                    (user_id,))
     finally:
         conn.close()
 
@@ -393,6 +479,10 @@ def delete_user(user_id, remove_data=True):
         conn.close()
 
     if remove_data:
+        if using_postgres():
+            import storage
+            storage.drop_database(user["db_file"])
+            return None
         # The current request may still have this person's SQLite file
         # open. Windows does not permit deleting an open database file,
         # so release this thread's storage connection before unlinking it.
@@ -411,4 +501,6 @@ def delete_user(user_id, remove_data=True):
 
 def db_path_for(user):
     """Where this person's schedule lives."""
+    if using_postgres():
+        return user["db_file"]
     return USER_DATA_DIR / user["db_file"]

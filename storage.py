@@ -34,6 +34,8 @@ Why this matters:
   shape of the data, not by remembering to be careful.
 """
 
+import os
+import re
 import sqlite3
 import threading
 import uuid
@@ -44,6 +46,47 @@ from pathlib import Path
 import config
 
 DB_FILE = config.DATA_DIR / "cadence.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+
+def using_postgres():
+    """True when Cadence is running against Neon/PostgreSQL."""
+    return bool(DATABASE_URL)
+
+
+def _postgres_sql(sql):
+    """Translate the small SQLite dialect used below for psycopg."""
+    sql = sql.replace("?", "%s")
+    sql = re.sub(r"INSERT OR IGNORE INTO", "INSERT INTO", sql,
+                 flags=re.I)
+    if "INSERT INTO tasks" in sql and "ON CONFLICT" not in sql and "VALUES" in sql:
+        # Only routine materialisation uses INSERT OR IGNORE. Its unique
+        # index makes this safe under simultaneous serverless requests.
+        if "routine_id)" in sql:
+            sql += " ON CONFLICT DO NOTHING"
+    return sql
+
+
+class _PostgresConnection:
+    """Keep the existing sqlite-style storage methods portable to Neon."""
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, sql, params=None):
+        return self.conn.execute(_postgres_sql(sql), params or ())
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, _exc, _tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        return False
+
+    def close(self):
+        self.conn.close()
 
 
 # -------------------------------------------------------------
@@ -118,6 +161,58 @@ CREATE TABLE IF NOT EXISTS goal_topics (
 CREATE INDEX IF NOT EXISTS idx_topics_goal ON goal_topics(goal_id);
 """
 
+# PostgreSQL uses a schema per account. That preserves the original
+# structural isolation: after setting search_path, queries can only see the
+# signed-in person's tables, not another account's rows.
+POSTGRES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS routines (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    hour INTEGER NOT NULL CHECK (hour BETWEEN 0 AND 23),
+    minute INTEGER NOT NULL CHECK (minute BETWEEN 0 AND 59),
+    days TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    start_date TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS goals (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    weeks INTEGER NOT NULL CHECK (weeks BETWEEN 1 AND 52),
+    status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft','active','paused','done')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date TEXT NOT NULL,
+    hour INTEGER NOT NULL CHECK (hour BETWEEN 0 AND 23),
+    minute INTEGER NOT NULL CHECK (minute BETWEEN 0 AND 59),
+    status TEXT NOT NULL DEFAULT 'upcoming'
+        CHECK (status IN ('upcoming', 'done', 'open')),
+    remind_at TEXT,
+    snooze_count INTEGER NOT NULL DEFAULT 0 CHECK (snooze_count >= 0),
+    routine_id TEXT REFERENCES routines(id) ON DELETE SET NULL,
+    goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
+    session_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS goal_topics (
+    id TEXT PRIMARY KEY,
+    goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    week INTEGER NOT NULL CHECK (week >= 1),
+    position INTEGER NOT NULL,
+    topic TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
+CREATE INDEX IF NOT EXISTS idx_topics_goal ON goal_topics(goal_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_routine ON tasks(routine_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_goal ON tasks(goal_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_routine_day ON tasks(routine_id, date)
+    WHERE routine_id IS NOT NULL;
+"""
+
 
 # -------------------------------------------------------------
 # CONNECTING
@@ -137,9 +232,9 @@ def use_database(path):
     Set per request, on the current thread only, so simultaneous
     visitors never see each other's data.
     """
-    path = Path(path)
+    path = str(path) if using_postgres() else Path(path)
     current = getattr(_local, "path", None)
-    if current is not None and Path(current) == path:
+    if current is not None and current == path:
         return                      # already pointed there
     close_connection()              # drop the old one first
     _local.path = path
@@ -147,6 +242,8 @@ def use_database(path):
 
 def current_database():
     """Which file this thread is using right now."""
+    if using_postgres():
+        return getattr(_local, "path", None) or "cadence_solo"
     return Path(getattr(_local, "path", None) or DB_FILE)
 
 
@@ -165,6 +262,22 @@ def get_connection():
     """This thread's database connection, opened if needed."""
     conn = getattr(_local, "conn", None)
     if conn is None:
+        if using_postgres():
+            try:
+                import psycopg
+                from psycopg.rows import dict_row
+            except ImportError as exc:
+                raise RuntimeError(
+                    "PostgreSQL is configured but psycopg is missing. "
+                    "Run: pip install -r requirements.txt") from exc
+            raw = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+            conn = _PostgresConnection(raw)
+            schema = current_database()
+            if not re.fullmatch(r"cadence_[a-z0-9_]+", str(schema)):
+                raise RuntimeError("Invalid Cadence PostgreSQL schema name.")
+            conn.execute(f'SET search_path TO "{schema}", public')
+            _local.conn = conn
+            return conn
         conn = sqlite3.connect(current_database())
         conn.row_factory = sqlite3.Row          # rows act like dicts
         conn.execute("PRAGMA journal_mode=WAL")  # crash-safe writes
@@ -183,6 +296,17 @@ def get_connection():
 def init_db():
     """Create tables on first run. Safe to call every start."""
     conn = get_connection()
+    if using_postgres():
+        schema = current_database()
+        # Schema names are generated internally (cadence_<random id>) and
+        # validated in get_connection before being interpolated.
+        conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+        conn.execute(f'SET search_path TO "{schema}", public')
+        for statement in POSTGRES_SCHEMA.split(";"):
+            if statement.strip():
+                conn.execute(statement)
+        conn.conn.commit()
+        return
     conn.executescript(SCHEMA)
 
     # If an older cadence.db exists without the new columns, add them.
@@ -235,6 +359,26 @@ def init_db_at(path):
     finally:
         close_connection()
         _local.path = previous
+
+
+def drop_database(path):
+    """Remove an account schema on PostgreSQL; used by account deletion."""
+    if not using_postgres():
+        return False
+    schema = str(path)
+    if not re.fullmatch(r"cadence_[a-z0-9_]+", schema):
+        raise RuntimeError("Invalid Cadence PostgreSQL schema name.")
+    close_connection()
+    try:
+        import psycopg
+        conn = psycopg.connect(DATABASE_URL, autocommit=True)
+        try:
+            conn.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+        finally:
+            conn.close()
+    finally:
+        _local.path = None
+    return True
 
 
 # -------------------------------------------------------------
@@ -590,6 +734,10 @@ def backup(destination):
     Copying the .db file by hand can catch it mid-write.
     SQLite's own backup cannot.
     """
+    if using_postgres():
+        raise RuntimeError(
+            "Neon manages database durability; use Neon backups/branches "
+            "instead of copying a local SQLite file.")
     dest = sqlite3.connect(destination)
     with dest:
         get_connection().backup(dest)
@@ -598,6 +746,10 @@ def backup(destination):
 
 
 def integrity_check():
+    if using_postgres():
+        # A simple query confirms the Neon connection and account schema.
+        get_connection().execute("SELECT 1").fetchone()
+        return "ok"
     return get_connection().execute("PRAGMA integrity_check").fetchone()[0]
 
 
@@ -606,6 +758,8 @@ def compact():
     Tidy the database files: fold the write-ahead log back in and
     reclaim unused space. Safe to run any time.
     """
+    if using_postgres():
+        return True
     conn = get_connection()
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     conn.execute("VACUUM")

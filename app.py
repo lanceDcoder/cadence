@@ -131,7 +131,10 @@ def route_to_the_right_database():
     if g.user is None:
         # Not signed in. Point at a throwaway path so that even a
         # bug in the check below cannot read real data.
-        storage.use_database(auth.USER_DATA_DIR / "_nobody.db")
+        if storage.using_postgres():
+            storage.use_database("cadence_nobody")
+        else:
+            storage.use_database(auth.USER_DATA_DIR / "_nobody.db")
 
         if request.endpoint in PUBLIC_ENDPOINTS:
             return None
