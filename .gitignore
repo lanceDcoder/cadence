@@ -2,6 +2,7 @@
 
 # The secret key. Unique per machine, regenerates automatically.
 .secret_key
+.env
 
 # Your virtual environment — everyone builds their own.
 .venv/

@@ -265,7 +265,9 @@ def propose_schedule(plan, start_date, hour, minute, days_of_week,
                     "date": current.isoformat(),
                     "hour": hour,
                     "minute": minute,
-                    "topic": chosen[placed],
+                    "topic": (chosen[placed].get("title", "Session")
+                              if isinstance(chosen[placed], dict)
+                              else chosen[placed]),
                     "week": entry["week"],
                 })
                 placed += 1

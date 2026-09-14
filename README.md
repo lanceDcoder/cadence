@@ -182,6 +182,22 @@ unsafe deployment where account schedules could disappear between requests.
 Use `CADENCE_SIGNUP=off` if you are not intentionally offering public
 registration.
 
+### Optional Gemini goal assistant
+
+Cadence can use Gemini to create personalised, reviewable long-term goal
+plans. Add these secrets in your local `.env` file or hosting provider's
+environment-variable settings—never in `vercel.json`, HTML, or source code:
+
+```text
+GEMINI_API_KEY=<a newly created Gemini API key>
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Restart the app, open **Goals**, and select **New Goal**. The plan remains a
+proposal: you choose session times and days, then explicitly accept it before
+anything is scheduled. If Gemini is unconfigured or unavailable, Cadence
+shows its existing local planner instead.
+
 `deploy.sh` checks dependencies, database integrity, backups, tests when available, and production settings before starting. The source repository should not contain `cadence.db`, `accounts.db`, `users/`, backups, logs, or `.secret_key`; those are runtime/private data.
 
 ## Two limits worth knowing

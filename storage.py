@@ -155,7 +155,8 @@ CREATE TABLE IF NOT EXISTS goal_topics (
     goal_id     TEXT    NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
     week        INTEGER NOT NULL CHECK (week >= 1),
     position    INTEGER NOT NULL,
-    topic       TEXT    NOT NULL
+    topic       TEXT    NOT NULL,
+    details     TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_topics_goal ON goal_topics(goal_id);
@@ -203,7 +204,8 @@ CREATE TABLE IF NOT EXISTS goal_topics (
     goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
     week INTEGER NOT NULL CHECK (week >= 1),
     position INTEGER NOT NULL,
-    topic TEXT NOT NULL
+    topic TEXT NOT NULL,
+    details TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
 CREATE INDEX IF NOT EXISTS idx_topics_goal ON goal_topics(goal_id);
@@ -305,6 +307,7 @@ def init_db():
         for statement in POSTGRES_SCHEMA.split(";"):
             if statement.strip():
                 conn.execute(statement)
+        conn.execute("ALTER TABLE goal_topics ADD COLUMN IF NOT EXISTS details TEXT")
         conn.conn.commit()
         return
     conn.executescript(SCHEMA)
@@ -318,6 +321,10 @@ def init_db():
     ]:
         if column not in existing:
             conn.execute(f"ALTER TABLE tasks ADD COLUMN {column} {decl}")
+
+    topic_columns = {r[1] for r in conn.execute("PRAGMA table_info(goal_topics)")}
+    if "details" not in topic_columns:
+        conn.execute("ALTER TABLE goal_topics ADD COLUMN details TEXT")
 
     # Indexes on the new columns, created only once those columns
     # definitely exist (an older cadence.db won't have had them).
@@ -678,22 +685,25 @@ def delete_goal(goal_id):
 
 
 def set_topics(goal_id, topics):
-    """topics = [(week, position, "HTML basics"), ...]"""
+    """topics = [(week, position, title, details), ...]."""
     conn = get_connection()
     with conn:
         conn.execute("DELETE FROM goal_topics WHERE goal_id = ?", (goal_id,))
-        for week, position, topic in topics:
+        for entry in topics:
+            week, position, topic = entry[:3]
+            details = entry[3] if len(entry) > 3 else None
             conn.execute(
-                """INSERT INTO goal_topics (id, goal_id, week, position, topic)
-                   VALUES (?,?,?,?,?)""",
-                (uuid.uuid4().hex[:8], goal_id, week, position, topic))
+                """INSERT INTO goal_topics (id, goal_id, week, position, topic, details)
+                   VALUES (?,?,?,?,?,?)""",
+                (uuid.uuid4().hex[:8], goal_id, week, position, topic, details))
 
 
 def get_topics(goal_id):
     rows = get_connection().execute(
-        """SELECT week, position, topic FROM goal_topics
+        """SELECT week, position, topic, details FROM goal_topics
            WHERE goal_id = ? ORDER BY week, position""", (goal_id,)).fetchall()
-    return [{"week": r["week"], "position": r["position"], "topic": r["topic"]}
+    return [{"week": r["week"], "position": r["position"], "topic": r["topic"],
+             "details": r["details"]}
             for r in rows]
 
 

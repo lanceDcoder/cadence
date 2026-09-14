@@ -29,6 +29,7 @@ from flask import (Flask, g, jsonify, redirect, render_template, request,
                    session, url_for)
 
 import auth
+import ai_assistant
 import config
 import language
 import planner
@@ -853,12 +854,35 @@ def api_goal_plan():
 
     weeks = safe_int(data.get("weeks"), planner.parse_duration(text), 1, 52)
 
+    # Goal planning uses a paid external service. Limit it per signed-in
+    # account so a leaked browser session cannot exhaust the API budget.
+    if ai_assistant.is_configured() and ACCOUNTS_ON:
+        user = current_user()
+        if user and auth.rate_limit("ai-goal:" + user["id"],
+                                    limit=12, window_seconds=3600):
+            return jsonify({"ok": False,
+                            "error": "You've reached the planning limit. Try again in an hour."}), 429
+
+    if ai_assistant.is_configured():
+        try:
+            result = ai_assistant.build_goal_plan(text, weeks)
+            return jsonify({"ok": True, "subject": planner.detect_subject(text),
+                            "assistant": "Gemini", **result})
+        except ai_assistant.AssistantError as exc:
+            # Planning remains useful during a provider outage. The interface
+            # clearly tells the user that it used the local planner instead.
+            notice = str(exc) + " A standard Cadence plan is shown instead."
+    else:
+        notice = "Add GEMINI_API_KEY to enable personalised AI planning. A standard Cadence plan is shown instead."
+
     return jsonify({
         "ok": True,
         "title": planner.clean_goal_title(text),
         "weeks": weeks,
         "subject": planner.detect_subject(text),
         "plan": planner.build_curriculum(text, weeks),
+        "assistant": "Cadence",
+        "notice": notice,
     })
 
 
@@ -914,7 +938,13 @@ def api_goal_accept():
             continue
         week_no = safe_int(w.get("week"), 1, 1, 52)
         for i, topic in enumerate(w.get("topics") or []):
-            topics.append((week_no, i, str(topic)[:200]))
+            if isinstance(topic, dict):
+                title = str(topic.get("title") or "").strip()[:200]
+                details = str(topic.get("details") or "").strip()[:1200]
+            else:
+                title, details = str(topic).strip()[:200], ""
+            if title:
+                topics.append((week_no, i, title, details))
     storage.set_topics(goal_id, topics)
 
     created = 0
@@ -948,7 +978,7 @@ def api_goal_detail(goal_id):
     if not goal:
         return jsonify({"ok": False}), 404
     return jsonify({
-        "ok": True, "goal": goal,
+        "ok": True, "goal": goal, "today": today_str(),
         "topics": storage.get_topics(goal_id),
         "progress": storage.goal_progress(goal_id),
         "sessions": [

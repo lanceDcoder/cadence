@@ -454,6 +454,17 @@
     margin-bottom:12px; }
   .hint-list { font-size:12.5px; color:var(--faint); margin-top:-7px;
     margin-bottom:15px; line-height:1.75; }
+  .goal-chat { display:flex; flex-direction:column; gap:10px; max-height:260px;
+    overflow-y:auto; padding:4px 2px 8px; margin:4px 0 13px; }
+  .goal-message { max-width:88%; padding:10px 12px; border-radius:14px;
+    font-size:13px; line-height:1.45; box-shadow:var(--sh-1); }
+  .goal-message.bot { align-self:flex-start; background:var(--surface-2);
+    color:var(--ink); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .goal-message.user { align-self:flex-end; background:var(--accent);
+    color:#fff; border-bottom-right-radius:4px; }
+  .goal-composer { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .goal-composer input { margin:0; flex:1; min-width:0; }
+  .goal-composer .btn { flex:0 0 auto; padding:11px 14px; }
 
   /* Scrollbars, so they don't glare white in dark mode. */
   ::-webkit-scrollbar { width:11px; height:11px; }
@@ -705,6 +716,8 @@
               <div class="progress">
                 <span style="width:{{ g.progress.percent }}%;"></span>
               </div>
+              <button type="button" class="btn sm" style="margin-top:11px;"
+                      onclick="openGoalCheckin('{{ g.id }}')">Roadmap &amp; check-in</button>
             </div>
             <form method="POST" action="/goals/{{ g.id }}/delete"
                   onsubmit="return confirm('Remove this goal? Future sessions will be removed too.')">
@@ -813,19 +826,26 @@
   <div class="modal">
 
     <div id="goal-step-1">
-      <h3>New Goal</h3>
-      <p class="sub">Tell me what you want to achieve, and by when.</p>
-      <label for="goal-text">Your goal</label>
-      <input type="text" id="goal-text"
-             placeholder="I want to become a web developer in one month"
-             autocomplete="off">
+      <h3>Eve's Goal Coach</h3>
+      <p class="sub">Tell me the goal you want to work toward. I’ll turn it into a plan you can review.</p>
+      <div class="goal-chat" id="goal-chat" role="log" aria-live="polite">
+        <div class="goal-message bot">Hi, I’m your goal coach. What would you like to achieve, and by when?</div>
+      </div>
+      <label for="goal-text">Your message</label>
+      <div class="goal-composer" id="goal-composer">
+        <input type="text" id="goal-text"
+               placeholder="I want to become a web developer in one month"
+               autocomplete="off" onkeydown="goalKeydown(event)">
+        <button type="button" class="btn primary" id="goal-build-btn" onclick="planGoal()">Send</button>
+      </div>
       <div class="hint-list">
         Examples: learn Python in 6 weeks · get fit in 2 months ·
         pass my exams in 3 weeks
       </div>
+      <p class="sub" id="goal-status" aria-live="polite" style="display:none;"></p>
       <div class="modal-actions">
         <button type="button" class="btn" onclick="closeModal('goal-overlay')">Cancel</button>
-        <button type="button" class="btn primary" onclick="planGoal()">Build a plan</button>
+        <button type="button" class="btn primary" id="goal-review-btn" style="display:none;" onclick="reviewGoalDraft()">Review my plan</button>
       </div>
     </div>
 
@@ -865,6 +885,23 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ============ EVE'S ROADMAP CHECK-IN ============ -->
+<div class="overlay" id="checkin-overlay" onclick="backdrop(event,'checkin-overlay')">
+  <div class="modal">
+    <h3 id="checkin-title">Eve's Check-in</h3>
+    <p class="sub" id="checkin-summary" aria-live="polite"></p>
+    <div id="checkin-prompt" class="parse-warn" style="display:none;"></div>
+    <div class="modal-actions" id="checkin-actions" style="display:none;">
+      <button type="button" class="btn" onclick="respondToCheckin('open')">Not yet</button>
+      <button type="button" class="btn primary" onclick="respondToCheckin('done')">Mark done</button>
+    </div>
+    <div id="checkin-roadmap"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" onclick="closeModal('checkin-overlay')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -1230,15 +1267,50 @@ function voiceReset(){
    ========================================================= */
 var goalData = null, goalSessions = [];
 
+function escapeHtml(value){
+  var el = document.createElement('div');
+  el.textContent = value;
+  return el.innerHTML;
+}
+
+function setGoalStatus(message){
+  var status = document.getElementById('goal-status');
+  status.textContent = message;
+  status.style.display = message ? 'block' : 'none';
+}
+
+function addGoalMessage(kind, message){
+  var chat = document.getElementById('goal-chat');
+  var bubble = document.createElement('div');
+  bubble.className = 'goal-message ' + kind;
+  bubble.textContent = message;
+  chat.appendChild(bubble);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function goalKeydown(event){
+  if(event.key === 'Enter'){
+    event.preventDefault();
+    planGoal();
+  }
+}
+
 function goalStep(n){
   [1,2,3].forEach(function(i){
     document.getElementById('goal-step-'+i).style.display =
       (i===n) ? 'block' : 'none';
   });
 }
-function goalBack(){ goalStep(1); }
+function goalBack(){
+  goalStep(1);
+  document.getElementById('goal-composer').style.display = 'flex';
+  document.getElementById('goal-review-btn').style.display = 'none';
+  setGoalStatus('Want to revise the goal? Send another message.');
+  document.getElementById('goal-text').focus();
+}
+function reviewGoalDraft(){ goalStep(2); }
 
-function planGoal(){
+function legacyPlanGoal(){
   var text = document.getElementById('goal-text').value.trim();
   if(!text) return;
   fetch('/api/goal/plan',{
@@ -1260,6 +1332,46 @@ function planGoal(){
       document.getElementById('goal-plan').innerHTML = html;
       goalStep(2);
     });
+}
+
+function planGoal(){
+  var text = document.getElementById('goal-text').value.trim();
+  if(!text) return;
+  var buildButton = document.getElementById('goal-build-btn');
+  buildButton.disabled = true;
+  addGoalMessage('user', text);
+  document.getElementById('goal-text').value = '';
+  setGoalStatus('Building your plan…');
+  fetch('/api/goal/plan',{
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf-token]').content},
+    body: JSON.stringify({goal:text})
+  }).then(function(r){
+    return r.json().then(function(d){
+      if(!r.ok || !d.ok) throw new Error(d.error || 'Unable to build a plan.');
+      return d;
+    });
+  }).then(function(d){
+    goalData = d;
+    document.getElementById('goal-title-2').textContent = d.title;
+    document.getElementById('goal-sub-2').textContent =
+      d.weeks + ' weeks · ' + (d.assistant || 'Cadence') + ' suggests this plan.';
+    var html = '';
+    d.plan.forEach(function(w){
+      html += '<div class="week-block"><h4>Week ' + w.week + '</h4><ul>';
+      w.topics.forEach(function(t){ html += '<li>' + escapeHtml(t) + '</li>'; });
+      html += '</ul></div>';
+    });
+    document.getElementById('goal-plan').innerHTML = html;
+    addGoalMessage('bot', 'I drafted a ' + d.weeks + '-week plan for “' +
+      d.title + '”. Review it, choose the days and time that fit your life, then approve it when you are ready.');
+    document.getElementById('goal-composer').style.display = 'none';
+    document.getElementById('goal-review-btn').style.display = 'block';
+    setGoalStatus(d.notice || 'Your plan is ready to review.');
+  }).catch(function(error){
+    setGoalStatus(error.message || 'Unable to build a plan. Please try again.');
+  }).finally(function(){
+    buildButton.disabled = false;
+  });
 }
 
 function previewGoal(){
@@ -1297,6 +1409,98 @@ function acceptGoal(){
                           plan:goalData.plan, sessions:goalSessions})
   }).then(function(r){ return r.json(); })
     .then(function(){ location.reload(); });
+}
+
+/* =========================================================
+   EVE'S ROADMAP CHECK-INS
+   Each roadmap topic is backed by a real scheduled task. A check-in
+   changes that task's existing status; it never silently reschedules it.
+   ========================================================= */
+var checkinGoalId = null, checkinTaskId = null;
+
+function openGoalCheckin(goalId){
+  checkinGoalId = goalId;
+  openModal('checkin-overlay');
+  document.getElementById('checkin-title').textContent = "Eve's Check-in";
+  document.getElementById('checkin-summary').textContent = 'Loading your roadmap…';
+  document.getElementById('checkin-roadmap').innerHTML = '';
+  document.getElementById('checkin-prompt').style.display = 'none';
+  document.getElementById('checkin-actions').style.display = 'none';
+  loadGoalCheckin();
+}
+
+function loadGoalCheckin(){
+  fetch('/api/goal/' + encodeURIComponent(checkinGoalId))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.ok) throw new Error('That roadmap is no longer available.');
+      renderGoalCheckin(data);
+    }).catch(function(error){
+      document.getElementById('checkin-summary').textContent = error.message || 'Unable to load this roadmap.';
+    });
+}
+
+function renderGoalCheckin(data){
+  document.getElementById('checkin-title').textContent = "Eve's Check-in: " + data.goal.title;
+  document.getElementById('checkin-summary').textContent = data.progress.done +
+    ' of ' + data.progress.total + ' roadmap sessions completed.';
+  var sessions = data.sessions || [];
+  var states = {};
+  sessions.forEach(function(session){ states[session.session_note + '|' + session.title] = session.status; });
+  var byWeek = {};
+  (data.topics || []).forEach(function(topic){
+    (byWeek[topic.week] || (byWeek[topic.week] = [])).push(topic);
+  });
+  var html = '';
+  Object.keys(byWeek).forEach(function(week){
+    html += '<div class="week-block"><h4>Week ' + week + '</h4><ul>';
+    byWeek[week].forEach(function(topic){
+      var state = states['Week ' + week + '|' + topic.topic];
+      var marker = state === 'done' ? ' ✓' : state === 'open' ? ' — not yet' : '';
+      html += '<li>' + escapeHtml(topic.topic + marker) + '</li>';
+    });
+    html += '</ul></div>';
+  });
+  document.getElementById('checkin-roadmap').innerHTML = html || '<div class="empty">No roadmap items found.</div>';
+
+  var due = sessions.filter(function(session){
+    return session.date <= data.today && session.status !== 'done';
+  });
+  var next = due[0] || sessions.find(function(session){ return session.status !== 'done'; });
+  var prompt = document.getElementById('checkin-prompt');
+  var actions = document.getElementById('checkin-actions');
+  checkinTaskId = next ? next.id : null;
+  if(!next){
+    prompt.textContent = 'Everything on this roadmap is complete. Great work.';
+    prompt.style.display = 'block';
+    actions.style.display = 'none';
+  } else if(next.date <= data.today) {
+    prompt.textContent = 'Did you complete “' + next.title + '” scheduled for ' + next.time_label + '?';
+    prompt.style.display = 'block';
+    actions.style.display = 'flex';
+  } else {
+    prompt.textContent = 'Your next roadmap session is “' + next.title + '” on ' + next.date + ' at ' + next.time_label + '.';
+    prompt.style.display = 'block';
+    actions.style.display = 'none';
+  }
+}
+
+function respondToCheckin(action){
+  if(!checkinTaskId) return;
+  var buttons = document.querySelectorAll('#checkin-actions button');
+  buttons.forEach(function(button){ button.disabled = true; });
+  fetch('/tasks/' + encodeURIComponent(checkinTaskId) + '/respond', {
+    method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':document.querySelector('meta[name=csrf-token]').content},
+    body: JSON.stringify({action:action})
+  }).then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.ok) throw new Error(data.error || 'Unable to update this session.');
+      loadGoalCheckin();
+    }).catch(function(error){
+      document.getElementById('checkin-summary').textContent = error.message || 'Unable to update this session.';
+    }).finally(function(){
+      buttons.forEach(function(button){ button.disabled = false; });
+    });
 }
 
 /* =========================================================
